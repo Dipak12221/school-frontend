@@ -1,0 +1,302 @@
+/* =================================
+   TEACHER MANAGEMENT HEADER
+================================= */
+
+.Teacher-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.Teacher-header h1 {
+  margin: 0;
+  color: #1769f5;
+  font-size: 28px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.Teacher-header-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 500px;
+}
+
+/* Search Bar */
+.Teacher-search {
+  width: 100%;
+}
+
+.Teacher-search input {
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+  background-color: #ffffff;
+}
+
+.Teacher-search input:focus {
+  border-color: #1769f5;
+  box-shadow: 0 0 0 3px rgba(23, 105, 245, 0.15);
+}
+
+/* Bottom Controls Row */
+.Teacher-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+.Teacher-bottom-row .export-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.Teacher-bottom-row .export-buttons button {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.Teacher-bottom-row .export-buttons button:hover {
+  background: #f1f5f9;
+  color: #1769f5;
+  border-color: #93c5fd;
+}
+
+.Teacher-bottom-row .add-student-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: #1769f5;
+  color: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.Teacher-bottom-row .add-student-btn:hover {
+  background: #1254ca;
+}
+
+/* =================================
+   ACTION BUTTONS (EXACTLY LIKE STUDENTS.CSS)
+================================= */
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.action-btn {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 6px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s ease;
+}
+
+.view-btn {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.view-btn:hover {
+  background-color: #bae6fd;
+}
+
+.edit-btn {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.edit-btn:hover {
+  background-color: #fde68a;
+}
+
+.delete-btn {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.delete-btn:hover {
+  background-color: #fecaca;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .Teacher-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .Teacher-header-right {
+    max-width: 100%;
+  }
+}
+/* =================================
+   THEME TABLE STYLING (BLUE HEADER)
+================================= */
+
+.students-table {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.students-table table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+/* Blue Header Row */
+.students-table th {
+  background-color: #1d6bf3 !important; /* Blue Theme */
+  color: #ffffff !important;
+  font-weight: 700;
+  padding: 14px 16px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.students-table th:hover {
+  background-color: #1557d0 !important;
+}
+
+/* Table Body Rows */
+.students-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.students-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* =================================
+   ACTION BUTTONS (SAME AS SCREENSHOT)
+================================= */
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-btn {
+  width: 34px !important;
+  height: 34px !important;
+  padding: 0 !important;
+  border-radius: 6px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  color: #ffffff !important; /* Icons hamesha white rahenge */
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.9;
+}
+
+/* Green View Button */
+.view-btn {
+  background-color: #059669 !important;
+}
+
+/* Blue Edit Button */
+.edit-btn {
+  background-color: #1d6bf3 !important;
+}
+
+/* Red Delete Button */
+.delete-btn {
+  background-color: #ef4444 !important;
+}
+
+/* =================================
+   STATUS BADGES
+================================= */
+
+.status {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.status.active {
+  background-color: #059669;
+  color: #ffffff;
+}
+
+.status.inactive {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+/* Action Button ke andar ka Icon / Image chhota karne ke liye */
+.action-btn svg,
+.action-btn img {
+  width: 16px !important; /* Need ke mutabiq 10px ya 11px kar sakte hain */
+  height: 16px !important;
+  font-size: 16px !important;
+}
+
+/* Icon center align rakhne ke liye */
+.action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}

@@ -1,0 +1,307 @@
+/* ======================================
+   ADMIN DASHBOARD LAYOUT
+====================================== */
+
+.admin-dashboard {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f7fb;
+}
+
+.admin-dashboard-main {
+  flex: 1;
+  margin-left: 280px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.admin-dashboard-content {
+  flex: 1;
+  padding: 30px;
+  background: #f5f7fb;
+  box-sizing: border-box;
+}
+
+/* ======================================
+   WELCOME SECTION
+====================================== */
+
+.admin-welcome {
+  background: #fff;
+  border-radius: 18px;
+  padding: 30px;
+  margin-bottom: 30px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.admin-welcome h1 {
+  font-size: 36px;
+  color: #0d6efd;
+  margin-bottom: 10px;
+}
+
+.admin-welcome p {
+  color: #666;
+  font-size: 17px;
+}
+
+.admin-welcome img {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+}
+
+/* ======================================
+   DASHBOARD CARDS
+====================================== */
+
+.admin-cards {
+  display: grid;
+
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+
+  gap: 25px;
+
+  margin-bottom: 30px;
+}
+
+.admin-card {
+  background: #fff;
+
+  border-radius: 18px;
+
+  padding: 28px;
+
+  text-align: center;
+
+  transition: 0.3s;
+
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.admin-card:hover {
+  transform: translateY(-6px);
+
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+}
+
+.card-icon {
+  font-size: 50px;
+
+  margin-bottom: 18px;
+}
+
+.admin-card h2 {
+  font-size: 34px;
+
+  margin-bottom: 10px;
+
+  color: #222;
+}
+
+.admin-card p {
+  color: #666;
+
+  font-size: 17px;
+}
+
+/* Colors */
+
+.blue {
+  color: #0d6efd;
+}
+
+.green {
+  color: #198754;
+}
+
+.orange {
+  color: #fd7e14;
+}
+
+.red {
+  color: #dc3545;
+}
+
+/* ======================================
+   BOTTOM SECTION
+====================================== */
+
+.admin-bottom {
+  display: grid;
+
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 25px;
+}
+
+/* ======================================
+   RECENT ACTIVITY
+====================================== */
+
+.activity-box {
+  background: #fff;
+
+  border-radius: 18px;
+
+  padding: 25px;
+
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.activity-box h2 {
+  color: #0d6efd;
+
+  margin-bottom: 20px;
+}
+
+.activity-box ul {
+  list-style: none;
+
+  padding: 0;
+
+  margin: 0;
+}
+
+.activity-box li {
+  padding: 14px 0;
+
+  border-bottom: 1px solid #eee;
+
+  color: #444;
+}
+
+.activity-box li:last-child {
+  border: none;
+}
+
+/* ======================================
+   QUICK ACTION
+====================================== */
+
+.quick-actions {
+  background: #fff;
+
+  border-radius: 18px;
+
+  padding: 25px;
+
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.quick-actions h2 {
+  color: #0d6efd;
+
+  margin-bottom: 20px;
+}
+
+.action-grid {
+  display: grid;
+
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 18px;
+}
+
+.action-grid button {
+  border: none;
+
+  border-radius: 12px;
+
+  padding: 18px;
+
+  background: #0d6efd;
+
+  color: #fff;
+
+  cursor: pointer;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 10px;
+
+  font-size: 16px;
+
+  font-weight: 600;
+
+  transition: 0.3s;
+}
+
+.action-grid button svg {
+  font-size: 28px;
+}
+
+.action-grid button:hover {
+  background: #084298;
+
+  transform: translateY(-4px);
+}
+
+/* ======================================
+   RESPONSIVE
+====================================== */
+
+@media (max-width: 992px) {
+  .admin-dashboard-main {
+    margin-left: 250px;
+  }
+
+  .admin-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-welcome {
+    flex-direction: column;
+
+    text-align: center;
+
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard {
+    flex-direction: column;
+  }
+
+  .admin-dashboard-main {
+    margin-left: 0;
+  }
+
+  .admin-dashboard-content {
+    padding: 20px;
+  }
+
+  .admin-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-card {
+    padding: 24px;
+  }
+
+  .admin-welcome h1 {
+    font-size: 30px;
+  }
+
+  .admin-card h2 {
+    font-size: 30px;
+  }
+}

@@ -1,0 +1,353 @@
+.gallery-page {
+  padding: 20px;
+}
+
+.gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 24px;
+}
+
+.gallery-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gallery-header .header-icon {
+  color: #3b82f6;
+}
+
+.gallery-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gallery-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.gallery-search-icon {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+}
+
+.gallery-search input {
+  padding: 8px 12px 8px 36px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  outline: none;
+  font-size: 14px;
+  width: 220px;
+}
+
+.gallery-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gallery-filters select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 13px;
+  outline: none;
+  background: #ffffff;
+}
+
+.gallery-reset-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.add-gallery-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+/* Grid Layout */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 20px;
+}
+
+.gallery-card {
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.gallery-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.gallery-card-img-wrapper {
+  position: relative;
+  height: 180px;
+  overflow: hidden;
+}
+
+.gallery-card-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-category-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.gallery-card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.gallery-card-img-wrapper:hover .gallery-card-overlay {
+  opacity: 1;
+}
+
+.gallery-card-overlay button {
+  background: #ffffff;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #1e293b;
+  transition: background 0.2s ease;
+}
+
+.gallery-card-overlay button:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.gallery-card-content {
+  padding: 14px;
+}
+
+.gallery-date {
+  font-size: 12px;
+  color: #94a3b8;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.gallery-card-content h3 {
+  font-size: 16px;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.gallery-card-content p {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.gallery-empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+  color: #94a3b8;
+  background: #ffffff;
+  border-radius: 12px;
+}
+
+/* Modals */
+.gallery-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.gallery-modal {
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  width: 480px;
+  max-width: 92%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.view-gallery-modal {
+  width: 550px;
+}
+
+.gallery-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.gallery-modal-form .form-group {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-modal-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.gallery-modal-form input,
+.gallery-modal-form select,
+.gallery-modal-form textarea {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  outline: none;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.save-gallery-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Preview Modal Body */
+.gallery-preview-body img {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.gallery-preview-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gallery-preview-details p {
+  color: #334155;
+  font-size: 14px;
+  margin-top: 6px;
+}
+/* Video Specific Styling */
+.video-thumbnail-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+}
+
+.video-thumbnail-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.8;
+}
+
+.video-play-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(37, 99, 235, 0.9);
+  color: #ffffff;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  padding-left: 3px; /* visual center for play icon */
+}
+
+.gallery-type-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(15, 23, 42, 0.8);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gallery-preview-video {
+  width: 100%;
+  max-height: 350px;
+  border-radius: 8px;
+  background: #000000;
+  margin-bottom: 12px;
+}

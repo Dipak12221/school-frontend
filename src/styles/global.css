@@ -1,0 +1,23 @@
+body {
+  font-family: "Poppins", sans-serif;
+  background: #f5f7fa;
+  color: #222;
+}
+
+a {
+  text-decoration: none;
+}
+
+ul {
+  list-style: none;
+}
+
+.container {
+  width: 90%;
+  max-width: 1280px;
+  margin: auto;
+}
+
+section {
+  padding: 70px 0;
+}

@@ -1,0 +1,201 @@
+/* ==========================
+   STUDENT NOTICES PAGE
+========================== */
+
+.page-title{
+    font-size:30px;
+    color:#0d6efd;
+    margin-bottom:25px;
+}
+
+/* ==========================
+   SEARCH BOX
+========================== */
+
+.search-box{
+    margin-bottom:30px;
+}
+
+.search-box input{
+    width:100%;
+    max-width:450px;
+    padding:14px 18px;
+    border:1px solid #ddd;
+    border-radius:10px;
+    font-size:16px;
+    outline:none;
+    transition:.3s;
+    box-sizing:border-box;
+}
+
+.search-box input:focus{
+    border-color:#0d6efd;
+    box-shadow:0 0 8px rgba(13,110,253,.2);
+}
+
+/* ==========================
+   NOTICE GRID
+========================== */
+
+.student-notice-container{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(380px,1fr));
+    gap:25px;
+    width:100%;
+}
+
+/* ==========================
+   NOTICE CARD
+========================== */
+
+.student-notice-card{
+    background:#fff;
+    border-left:5px solid #0d6efd;
+    border-radius:15px;
+    padding:22px;
+    box-shadow:0 5px 15px rgba(0,0,0,.08);
+    transition:.3s;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    word-break:break-word;
+}
+
+.student-notice-card:hover{
+    transform:translateY(-5px);
+    box-shadow:0 10px 25px rgba(0,0,0,.12);
+}
+
+/* ==========================
+   HEADER
+========================== */
+
+.student-notice-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:15px;
+    margin-bottom:15px;
+}
+
+.student-notice-header h3{
+    flex:1;
+    margin:0;
+    color:#0d6efd;
+    font-size:24px;
+    line-height:1.4;
+}
+
+/* ==========================
+   IMPORTANT BADGE
+========================== */
+
+.student-important-badge{
+    background:#dc3545;
+    color:#fff;
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:13px;
+    font-weight:600;
+    white-space:nowrap;
+}
+
+/* ==========================
+   NOTICE INFO
+========================== */
+
+.student-notice-info{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+    gap:10px;
+}
+
+.student-notice-info span{
+    color:#666;
+    font-size:15px;
+}
+
+.student-category{
+    background:#e7f1ff;
+    color:#0d6efd !important;
+    padding:6px 14px;
+    border-radius:20px;
+    font-weight:600;
+}
+
+/* ==========================
+   DESCRIPTION
+========================== */
+
+.student-notice-card p{
+    margin:0;
+    color:#555;
+    line-height:1.8;
+    font-size:16px;
+}
+
+/* ==========================
+   EMPTY MESSAGE
+========================== */
+
+.student-no-notice{
+    grid-column:1/-1;
+    text-align:center;
+    padding:40px;
+    background:#fff;
+    border-radius:15px;
+    box-shadow:0 5px 15px rgba(0,0,0,.08);
+    color:#777;
+    font-size:18px;
+}
+
+/* ==========================
+   DASHBOARD FIX
+========================== */
+
+.dashboard-content{
+    width:100%;
+    overflow-x:hidden;
+    box-sizing:border-box;
+}
+
+/* ==========================
+   RESPONSIVE
+========================== */
+
+@media(max-width:992px){
+
+.student-notice-container{
+    grid-template-columns:1fr;
+}
+
+}
+
+@media(max-width:768px){
+
+.student-notice-header{
+    flex-direction:column;
+    align-items:flex-start;
+}
+
+.student-notice-info{
+    flex-direction:column;
+    align-items:flex-start;
+}
+
+.search-box input{
+    max-width:100%;
+}
+
+.student-notice-header h3{
+    font-size:22px;
+}
+
+.student-notice-card{
+    padding:18px;
+}
+
+}

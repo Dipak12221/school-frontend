@@ -1,0 +1,49 @@
+/* src/components/common/Loader/Loader.css */
+
+.loader-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  width: 100%;
+  min-height: 250px;
+}
+
+/* Full screen overlay jab puri page load ho rahi ho */
+.loader-container.full-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+}
+
+/* Spinner Icon CSS & Animation */
+.spinner-icon {
+  font-size: 2.5rem;
+  color: #2563eb; /* Theme primary blue */
+  animation: spin 0.9s linear infinite;
+  margin-bottom: 12px;
+}
+
+.loader-container p {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+
+/* Continuous 360-degree rotation animation */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

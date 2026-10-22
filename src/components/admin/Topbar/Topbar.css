@@ -1,0 +1,147 @@
+/* ==========================
+   ADMIN TOPBAR
+========================== */
+
+.admin-topbar{
+    height:80px;
+    background:#fff;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 35px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+}
+
+.admin-topbar-left h2{
+    color:#0d6efd;
+    font-size:30px;
+    font-weight:700;
+}
+
+/* ==========================
+   RIGHT
+========================== */
+
+.admin-topbar-right{
+    display:flex;
+    align-items:center;
+    gap:25px;
+}
+
+/* ==========================
+   NOTIFICATION
+========================== */
+
+.admin-notification{
+    width:50px;
+    height:50px;
+    border:none;
+    border-radius:50%;
+    background:#eef5ff;
+    color:#0d6efd;
+    font-size:20px;
+    cursor:pointer;
+    position:relative;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.notification-count{
+    position:absolute;
+    top:-5px;
+    right:-5px;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    background:#dc3545;
+    color:#fff;
+    font-size:12px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+/* ==========================
+   PROFILE
+========================== */
+
+.admin-profile{
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+
+.admin-profile-icon{
+    font-size:46px;
+    color:#0d6efd;
+}
+
+.admin-info h4{
+    margin:0;
+    font-size:18px;
+}
+
+.admin-info p{
+    margin:2px 0 0;
+    color:#777;
+    font-size:14px;
+}
+
+/* ==========================
+   LOGOUT
+========================== */
+
+.admin-logout-btn{
+    background:#dc3545;
+    color:#fff;
+    border:none;
+    padding:12px 22px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    cursor:pointer;
+    font-size:15px;
+    font-weight:600;
+    transition:.3s;
+}
+
+.admin-logout-btn:hover{
+    background:#bb2d3b;
+}
+
+/* ==========================
+   RESPONSIVE
+========================== */
+
+@media(max-width:992px){
+
+.admin-topbar{
+    flex-direction:column;
+    height:auto;
+    padding:20px;
+    gap:20px;
+}
+
+.admin-topbar-right{
+    width:100%;
+    justify-content:space-between;
+    flex-wrap:wrap;
+}
+
+}
+
+@media(max-width:768px){
+
+.admin-topbar-right{
+    flex-direction:column;
+    align-items:flex-start;
+}
+
+.admin-logout-btn{
+    width:100%;
+    justify-content:center;
+}
+
+}

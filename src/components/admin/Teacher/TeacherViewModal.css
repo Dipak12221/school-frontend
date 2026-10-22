@@ -1,0 +1,87 @@
+.teacher-view-modal {
+  width: 620px;
+  max-width: 100%;
+  background: #fff;
+  border-radius: 16px;
+  padding: 15px;
+}
+
+.teacher-view-modal h2 {
+  text-align: center;
+  color: #2563eb;
+  font-size: 20px;
+  margin-bottom: 18px;
+}
+
+.teacher-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.teacher-image {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #2563eb;
+  flex-shrink: 0;
+}
+
+.teacher-header-info h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #222;
+}
+
+.teacher-header-info span {
+  margin-top: 4px;
+  font-size: 16px;
+  color: #777;
+}
+.teacher-header-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.teacher-divider {
+  border: none;
+  border-top: 1px solid #e5e5e5;
+  margin: 18px 0 20px;
+}
+.teacher-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.info-card {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.info-card label {
+  display: block;
+  color: #777;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.info-card p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.close-btn {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px;
+  font-size: 17px;
+  border-radius: 10px;
+}

@@ -1,0 +1,102 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 9999;
+}
+
+.modal {
+  width: 700px;
+  max-width: 95%;
+
+  background: #fff;
+
+  border-radius: 12px;
+
+  padding: 25px;
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+
+  max-height: 90vh;
+
+  overflow-y: auto;
+}
+
+.modal h2 {
+  margin-bottom: 20px;
+  color: #2563eb;
+}
+
+.modal form {
+  display: grid;
+
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 600;
+
+  margin-bottom: 6px;
+
+  color: #555;
+}
+
+.form-group input,
+.form-group select {
+  padding: 12px;
+
+  border: 1px solid #dcdcdc;
+
+  border-radius: 8px;
+
+  font-size: 15px;
+}
+
+.modal-buttons {
+  grid-column: 1 / -1;
+
+  display: flex;
+
+  justify-content: flex-end;
+
+  gap: 12px;
+
+  margin-top: 20px;
+}
+
+.modal-buttons button {
+  padding: 12px 24px;
+
+  border: none;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  font-size: 15px;
+
+  font-weight: 600;
+}
+
+.modal-buttons button[type="submit"] {
+  background: #2563eb;
+
+  color: white;
+}
+
+.modal-buttons button[type="button"] {
+  background: #e5e7eb;
+}
