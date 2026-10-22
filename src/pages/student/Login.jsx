@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { FaUserGraduate, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 
 import useAuth from "../../hooks/useAuth";
-import "../../styles/Login.css";
+import "../../styles/login.css";
 
 function Login() {
   const navigate = useNavigate();
