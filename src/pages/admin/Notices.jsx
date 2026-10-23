@@ -15,64 +15,15 @@ import { toast } from "react-toastify";
 import "./Notices.css";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
+import noticeService from "../../services/noticeService"; // Backend Service Import
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
-const INITIAL_NOTICES_DATA = [
-  {
-    id: 1,
-    title: "Annual Sports Day 2026",
-    category: "Event",
-    audience: "All",
-    date: "2026-08-25",
-    status: "Active",
-    content:
-      "The annual sports day will be held on August 25th in the main playground. Registration starts tomorrow.",
-  },
-  {
-    id: 2,
-    title: "Mid-Term Examination Schedule",
-    category: "Exam",
-    audience: "Students",
-    date: "2026-09-01",
-    status: "Active",
-    content:
-      "Mid-term exams for classes 6 to 12 will begin from September 1st. Detailed datesheet attached.",
-  },
-  {
-    id: 3,
-    title: "Staff Meeting Notice",
-    category: "Academic",
-    audience: "Teachers",
-    date: "2026-08-20",
-    status: "Draft",
-    content:
-      "Emergency staff meeting to discuss curriculum updates in Conference Hall A at 3 PM.",
-  },
-  {
-    id: 4,
-    title: "Summer Vacation Announcement",
-    category: "General",
-    audience: "All",
-    date: "2026-05-10",
-    status: "Expired",
-    content:
-      "School will remain closed for summer vacation from May 15 to June 15.",
-  },
-];
-
 const Notices = () => {
-  // 1. Persistent State Management
-  const [notices, setNotices] = useState(() => {
-    const saved = localStorage.getItem("admin_notices_data");
-    return saved ? JSON.parse(saved) : INITIAL_NOTICES_DATA;
-  });
+  const [notices, setNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    localStorage.setItem("admin_notices_data", JSON.stringify(notices));
-  }, [notices]);
-
-  // 2. Filters & Pagination State
+  // Filters & Pagination State
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [audienceFilter, setAudienceFilter] = useState("");
@@ -80,7 +31,7 @@ const Notices = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // 3. Modals & Form State
+  // Modals & Form State
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -89,7 +40,6 @@ const Notices = () => {
   const [noticeToDelete, setNoticeToDelete] = useState(null);
 
   const initialFormState = {
-    id: null,
     title: "",
     category: "General",
     audience: "All",
@@ -100,7 +50,24 @@ const Notices = () => {
 
   const [formData, setFormData] = useState(initialFormState);
 
-  // 4. Memoized Dynamic Filtering
+  // 1. Fetch Real Data from Backend
+  const fetchNotices = async () => {
+    setLoading(true);
+    try {
+      const data = await noticeService.getAllNotices();
+      setNotices(data || []);
+    } catch (error) {
+      toast.error("Failed to fetch notices from server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotices();
+  }, []);
+
+  // Memoized Dynamic Filtering
   const filteredNotices = useMemo(() => {
     return notices.filter((notice) => {
       const searchText = search.toLowerCase();
@@ -140,7 +107,7 @@ const Notices = () => {
     toast.info("Filters reset successfully");
   };
 
-  // 5. CSV Export Feature
+  // CSV Export Feature
   const handleExportCSV = () => {
     if (filteredNotices.length === 0) {
       toast.warning("No notice records available to export!");
@@ -150,7 +117,7 @@ const Notices = () => {
     const headers = ["ID,Title,Category,Audience,Publish Date,Status,Content"];
     const csvRows = filteredNotices.map((notice) =>
       [
-        notice.id,
+        notice._id,
         `"${notice.title.replace(/"/g, '""')}"`,
         notice.category,
         notice.audience,
@@ -193,15 +160,22 @@ const Notices = () => {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  // 2. Delete Action via API
+  const confirmDelete = async () => {
     if (!noticeToDelete) return;
-    setNotices((prev) => prev.filter((n) => n.id !== noticeToDelete.id));
-    toast.success(`Deleted notice "${noticeToDelete.title}" successfully!`);
-    setNoticeToDelete(null);
-    setShowDeleteModal(false);
+    try {
+      await noticeService.deleteNotice(noticeToDelete._id);
+      setNotices((prev) => prev.filter((n) => n._id !== noticeToDelete._id));
+      toast.success(`Deleted notice "${noticeToDelete.title}" successfully!`);
+      setNoticeToDelete(null);
+      setShowDeleteModal(false);
+    } catch (error) {
+      toast.error("Failed to delete notice");
+    }
   };
 
-  const handleFormSubmit = (e) => {
+  // 3. Save / Update Notice via API
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.title.trim() || !formData.content.trim()) {
@@ -209,21 +183,25 @@ const Notices = () => {
       return;
     }
 
-    if (formData.id) {
-      setNotices((prev) =>
-        prev.map((n) => (n.id === formData.id ? { ...formData } : n)),
-      );
-      toast.success("Notice updated successfully!");
-    } else {
-      const newNotice = {
-        ...formData,
-        id: Date.now(),
-      };
-      setNotices((prev) => [newNotice, ...prev]);
-      toast.success("New notice published successfully!");
+    try {
+      if (formData._id) {
+        const updated = await noticeService.updateNotice(
+          formData._id,
+          formData,
+        );
+        setNotices((prev) =>
+          prev.map((n) => (n._id === formData._id ? updated : n)),
+        );
+        toast.success("Notice updated successfully!");
+      } else {
+        const added = await noticeService.addNotice(formData);
+        setNotices((prev) => [added, ...prev]);
+        toast.success("New notice published successfully!");
+      }
+      setIsAddEditOpen(false);
+    } catch (error) {
+      toast.error("Action failed. Please try again.");
     }
-
-    setIsAddEditOpen(false);
   };
 
   return (
@@ -321,85 +299,91 @@ const Notices = () => {
 
             {/* Notice Table */}
             <div className="notices-table-container">
-              <table className="notices-table">
-                <thead>
-                  <tr>
-                    <th>Publish Date</th>
-                    <th>Notice Title</th>
-                    <th>Category</th>
-                    <th>Audience</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
+              {loading ? (
+                <div style={{ textAlign: "center", padding: "20px" }}>
+                  Loading notices...
+                </div>
+              ) : (
+                <table className="notices-table">
+                  <thead>
+                    <tr>
+                      <th>Publish Date</th>
+                      <th>Notice Title</th>
+                      <th>Category</th>
+                      <th>Audience</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
 
-                <tbody>
-                  {currentNotices.length > 0 ? (
-                    currentNotices.map((notice) => (
-                      <tr key={notice.id}>
-                        <td className="notice-date">{notice.date}</td>
-                        <td className="notice-title-cell">
-                          <strong>{notice.title}</strong>
-                        </td>
-                        <td>
-                          <span
-                            className={`category-badge category-${notice.category.toLowerCase()}`}
-                          >
-                            {notice.category}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="audience-badge">
-                            {notice.audience}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`status-badge status-${notice.status.toLowerCase()}`}
-                          >
-                            {notice.status}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="notice-action-buttons">
-                            <button
-                              className="notice-view-btn"
-                              onClick={() => handleView(notice)}
-                              title="View Details"
+                  <tbody>
+                    {currentNotices.length > 0 ? (
+                      currentNotices.map((notice) => (
+                        <tr key={notice._id}>
+                          <td className="notice-date">{notice.date}</td>
+                          <td className="notice-title-cell">
+                            <strong>{notice.title}</strong>
+                          </td>
+                          <td>
+                            <span
+                              className={`category-badge category-${notice.category.toLowerCase()}`}
                             >
-                              <FaEye />
-                            </button>
-                            <button
-                              className="notice-edit-btn"
-                              onClick={() => handleEdit(notice)}
-                              title="Edit Notice"
+                              {notice.category}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="audience-badge">
+                              {notice.audience}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`status-badge status-${notice.status.toLowerCase()}`}
                             >
-                              <FaEdit />
-                            </button>
-                            <button
-                              className="notice-delete-btn"
-                              onClick={() => promptDelete(notice)}
-                              title="Delete Notice"
-                            >
-                              <FaTrash />
-                            </button>
-                          </div>
+                              {notice.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="notice-action-buttons">
+                              <button
+                                className="notice-view-btn"
+                                onClick={() => handleView(notice)}
+                                title="View Details"
+                              >
+                                <FaEye />
+                              </button>
+                              <button
+                                className="notice-edit-btn"
+                                onClick={() => handleEdit(notice)}
+                                title="Edit Notice"
+                              >
+                                <FaEdit />
+                              </button>
+                              <button
+                                className="notice-delete-btn"
+                                onClick={() => promptDelete(notice)}
+                                title="Delete Notice"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6" className="notices-empty-state">
+                          No notices found.
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6" className="notices-empty-state">
-                        No notices found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             {/* Pagination Controls */}
-            {filteredNotices.length > 0 && (
+            {!loading && filteredNotices.length > 0 && (
               <div className="fees-pagination">
                 <button
                   disabled={currentPage === 1}
@@ -433,7 +417,7 @@ const Notices = () => {
         <div className="notice-modal-overlay">
           <div className="notice-modal">
             <div className="notice-modal-header">
-              <h2>{formData.id ? "Edit Notice" : "Create New Notice"}</h2>
+              <h2>{formData._id ? "Edit Notice" : "Create New Notice"}</h2>
               <button
                 onClick={() => setIsAddEditOpen(false)}
                 className="close-modal-btn"
@@ -528,7 +512,7 @@ const Notices = () => {
               </div>
 
               <button type="submit" className="save-notice-btn">
-                {formData.id ? "Update Notice" : "Publish Notice"}
+                {formData._id ? "Update Notice" : "Publish Notice"}
               </button>
             </form>
           </div>

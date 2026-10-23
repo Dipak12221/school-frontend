@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  //baseURL: "http://localhost:5000/api", // Aapka backend port
+  baseURL: "http://localhost:5000/api", // Aapka backend port
   baseURL: "https://school-backend-1-hmhu.onrender.com/api", // Aapka backend port
 });
 
