@@ -2,7 +2,10 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  // Vercel/Local env variable pehle lega; agar nahi mila to default live Render backend lega
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "https://school-backend-1-hmhu.onrender.com/api",
   headers: {
     "Content-Type": "application/json",
   },
