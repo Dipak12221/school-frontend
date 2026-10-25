@@ -17,6 +17,16 @@ export const feeService = {
     const response = await api.delete(`/fees/${id}`);
     return response.data;
   },
+
+  // --- Naye Master Setup Functions ---
+  getMasterSetup: async () => {
+    const response = await api.get("/fees/master-setup");
+    return response.data;
+  },
+  updateMasterSetup: async (data) => {
+    const response = await api.put("/fees/master-setup", data);
+    return response.data;
+  },
 };
 
 export default feeService;
