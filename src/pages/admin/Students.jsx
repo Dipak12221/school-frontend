@@ -17,6 +17,8 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import API from "../../services/api";
+import transportService from "../../services/transportService"; // New import
+import feeService from "../../services/feeService"; // New import
 import Loader from "../../components/common/Loader/Loader";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
@@ -26,12 +28,6 @@ import {
   printStudents,
 } from "../../utils/exportStudents";
 import "./Students.css";
-
-const TRANSPORT_ROUTES_MASTER = [
-  { id: "1", name: "Route 1 - Main City / Station", fee: 500 },
-  { id: "2", name: "Route 2 - Bypass / Industrial Area", fee: 800 },
-  { id: "3", name: "Route 3 - Suburb / Outer Colony", fee: 1000 },
-];
 
 const INITIAL_FORM = {
   enrollment: "",
@@ -44,7 +40,8 @@ const INITIAL_FORM = {
   gender: "Male",
   community: "GEN",
   aadhaarNo: "",
-  class: "10-A",
+  class: "", // Separated Class
+  section: "", // Separated Section
   rollNo: "",
   mobile: "",
   secondaryMobile: "",
@@ -53,8 +50,10 @@ const INITIAL_FORM = {
   sameAsResidential: false,
   studentType: "New",
   isTransport: false,
-  routeId: "",
-  routeName: "None",
+  busId: "", // From Transport Module
+  busName: "",
+  stopId: "", // From Fee Master Module
+  stopName: "",
   transportFee: 0,
   feeCategory: "General",
   status: "Active",
@@ -63,6 +62,11 @@ const INITIAL_FORM = {
 
 function Students() {
   const [students, setStudents] = useState([]);
+
+  // Naye States for Dropdowns
+  const [busList, setBusList] = useState([]);
+  const [stopList, setStopList] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [btnLoading, setBtnLoading] = useState(false);
 
@@ -87,21 +91,31 @@ function Students() {
   // Form State
   const [formData, setFormData] = useState(INITIAL_FORM);
 
-  // 1. Fetch Students from Backend API
-  const fetchStudents = async () => {
+  // 1. Fetch Students, Buses, and Stops in parallel
+  const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const { data } = await API.get("/students");
-      setStudents(data);
+      const [studentsRes, busesRes, feeMasterRes] = await Promise.all([
+        API.get("/students"),
+        transportService.getAllRoutes().catch(() => []), // Transport Module se Van/Buses
+        feeService.getMasterSetup().catch(() => null), // Fee Module se Stops/Price
+      ]);
+
+      setStudents(studentsRes.data || []);
+      setBusList(busesRes || []);
+
+      if (feeMasterRes && feeMasterRes.transportFees) {
+        setStopList(feeMasterRes.transportFees);
+      }
     } catch (error) {
-      // Axios interceptor handles global error toast
+      toast.error("Failed to load student or related data.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStudents();
+    fetchInitialData();
   }, []);
 
   // Sorting
@@ -160,6 +174,16 @@ function Students() {
           ? value
           : prev.correspondenceAddress,
       }));
+    } else if (name === "isTransport") {
+      setFormData((prev) => ({
+        ...prev,
+        isTransport: checked,
+        busId: checked ? prev.busId : "",
+        busName: checked ? prev.busName : "",
+        stopId: checked ? prev.stopId : "",
+        stopName: checked ? prev.stopName : "",
+        transportFee: checked ? prev.transportFee : 0,
+      }));
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -168,28 +192,40 @@ function Students() {
     }
   };
 
-  const handleTransportRouteChange = (e) => {
-    const routeId = e.target.value;
-    if (!routeId) {
+  // Bus Selection Handler
+  const handleBusChange = (e) => {
+    const selectedBusId = e.target.value;
+    if (!selectedBusId) {
+      setFormData((prev) => ({ ...prev, busId: "", busName: "" }));
+      return;
+    }
+    const bus = busList.find((b) => b._id === selectedBusId);
+    setFormData((prev) => ({
+      ...prev,
+      busId: selectedBusId,
+      busName: bus ? bus.routeName : "",
+    }));
+  };
+
+  // Stop Selection Handler
+  const handleStopChange = (e) => {
+    const selectedStopId = e.target.value;
+    if (!selectedStopId) {
       setFormData((prev) => ({
         ...prev,
-        isTransport: false,
-        routeId: "",
-        routeName: "None",
+        stopId: "",
+        stopName: "",
         transportFee: 0,
       }));
-    } else {
-      const selectedRoute = TRANSPORT_ROUTES_MASTER.find(
-        (r) => r.id === routeId,
-      );
-      setFormData((prev) => ({
-        ...prev,
-        isTransport: true,
-        routeId: routeId,
-        routeName: selectedRoute ? selectedRoute.name : "",
-        transportFee: selectedRoute ? selectedRoute.fee : 0,
-      }));
+      return;
     }
+    const stop = stopList.find((s) => s.id.toString() === selectedStopId);
+    setFormData((prev) => ({
+      ...prev,
+      stopId: stop.id,
+      stopName: stop.routeName,
+      transportFee: stop.fee,
+    }));
   };
 
   // Open Add Modal
@@ -214,9 +250,14 @@ function Students() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.class || !formData.mobile) {
+    if (
+      !formData.name ||
+      !formData.class ||
+      !formData.section ||
+      !formData.mobile
+    ) {
       toast.error(
-        "Please fill required fields (Name, Class, Primary Contact).",
+        "Please fill required fields (Name, Class, Section, Primary Contact).",
       );
       return;
     }
@@ -237,7 +278,7 @@ function Students() {
       }
       setShowModal(false);
     } catch (error) {
-      // Global Interceptor handle karega
+      // Global Interceptor handles error
     } finally {
       setBtnLoading(false);
     }
@@ -255,7 +296,7 @@ function Students() {
       toast.success("Student Record Deleted!");
       setDeleteStudent(null);
     } catch (error) {
-      // Global Interceptor handle karega
+      // Global Interceptor
     } finally {
       setBtnLoading(false);
     }
@@ -279,7 +320,7 @@ function Students() {
         setSelectedStudents([]);
         toast.success("Selected students deleted successfully!");
       } catch (error) {
-        // Global Interceptor handle karega
+        // Global Interceptor
       } finally {
         setBtnLoading(false);
       }
@@ -344,11 +385,11 @@ function Students() {
                       }}
                     >
                       <option value="">All Classes</option>
-                      <option value="6-A">6-A</option>
-                      <option value="8-A">8-A</option>
-                      <option value="9-B">9-B</option>
-                      <option value="10-A">10-A</option>
-                      <option value="11-C">11-C</option>
+                      <option value="6">Class 6</option>
+                      <option value="8">Class 8</option>
+                      <option value="9">Class 9</option>
+                      <option value="10">Class 10</option>
+                      <option value="11">Class 11</option>
                     </select>
 
                     <select
@@ -464,7 +505,7 @@ function Students() {
                       </th>
                       <th>Father's Name</th>
                       <th onClick={() => handleSort("class")}>
-                        Class{" "}
+                        Class & Sec{" "}
                         {sortField === "class" &&
                           (sortOrder === "asc" ? "▲" : "▼")}
                       </th>
@@ -500,7 +541,9 @@ function Students() {
                             </td>
                             <td>{s.name}</td>
                             <td>{s.fatherName}</td>
-                            <td>{s.class}</td>
+                            <td>
+                              {s.class} - {s.section}
+                            </td>
                             <td>{s.rollNo || "-"}</td>
                             <td>{s.mobile}</td>
                             <td>
@@ -516,9 +559,7 @@ function Students() {
                             </td>
                             <td>
                               <span
-                                className={`status ${(
-                                  s.status || "active"
-                                ).toLowerCase()}`}
+                                className={`status ${(s.status || "active").toLowerCase()}`}
                               >
                                 {s.status}
                               </span>
@@ -597,7 +638,6 @@ function Students() {
                 </div>
               )}
             </div>
-
             {/* ADMISSION FORM MODAL */}
             {showModal && (
               <div className="student-modal-overlay">
@@ -767,6 +807,7 @@ function Students() {
                     {/* SECTION 3: ACADEMIC DETAILS */}
                     <div className="form-section-title">Academic Details</div>
                     <div className="form-grid-3">
+                      {/* Separated Class & Section */}
                       <div>
                         <label>Class*</label>
                         <select
@@ -775,11 +816,38 @@ function Students() {
                           onChange={handleInputChange}
                           required
                         >
-                          <option value="6-A">6-A</option>
-                          <option value="8-A">8-A</option>
-                          <option value="9-B">9-B</option>
-                          <option value="10-A">10-A</option>
-                          <option value="11-C">11-C</option>
+                          <option value="">Select Class</option>
+                          <option value="PRE-NURSERY">Pre-Nursery</option>
+                          <option value="NURSERY">Nursery</option>
+                          <option value="LKG">LKG</option>
+                          <option value="UKG">UKG</option>
+                          <option value="1">Class 1</option>
+                          <option value="2">Class 2</option>
+                          <option value="3">Class 3</option>
+                          <option value="4">Class 4</option>
+                          <option value="5">Class 5</option>
+                          <option value="6">Class 6</option>
+                          <option value="7">Class 7</option>
+                          <option value="8">Class 8</option>
+                          <option value="9">Class 9</option>
+                          <option value="10">Class 10</option>
+                          <option value="11">Class 11</option>
+                          <option value="12">Class 12</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label>Section*</label>
+                        <select
+                          name="section"
+                          value={formData.section}
+                          onChange={handleInputChange}
+                          required
+                        >
+                          <option value="">Select Section</option>
+                          <option value="A">A</option>
+                          <option value="B">B</option>
+                          <option value="C">C</option>
+                          <option value="D">D</option>
                         </select>
                       </div>
                       <div>
@@ -895,24 +963,86 @@ function Students() {
                         </select>
                       </div>
 
-                      <div>
-                        <label>Transport Route</label>
-                        <select
-                          name="routeId"
-                          value={formData.routeId}
-                          onChange={handleTransportRouteChange}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          marginTop: "22px",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          id="isTransport"
+                          name="isTransport"
+                          checked={formData.isTransport}
+                          onChange={handleInputChange}
+                          style={{
+                            width: "auto",
+                            cursor: "pointer",
+                            marginRight: "8px",
+                          }}
+                        />
+                        <label
+                          htmlFor="isTransport"
+                          style={{
+                            margin: 0,
+                            cursor: "pointer",
+                            fontWeight: "600",
+                          }}
                         >
-                          <option value="">
-                            No Transport (Walk / Private)
-                          </option>
-                          {TRANSPORT_ROUTES_MASTER.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name} (₹{r.fee}/mo)
-                            </option>
-                          ))}
-                        </select>
+                          Opt for School Transport
+                        </label>
                       </div>
                     </div>
+
+                    {/* Dynamic Transport Selectors */}
+                    {formData.isTransport && (
+                      <div
+                        className="form-grid-2"
+                        style={{
+                          marginTop: "15px",
+                          background: "#f8fafc",
+                          padding: "15px",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        <div>
+                          <label>
+                            Assign Bus / Van (From Transport Module)*
+                          </label>
+                          <select
+                            name="busId"
+                            value={formData.busId}
+                            onChange={handleBusChange}
+                            required
+                          >
+                            <option value="">-- Select Bus / Van --</option>
+                            {busList.map((bus) => (
+                              <option key={bus._id} value={bus._id}>
+                                {bus.routeName} ({bus.busNumber})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label>Select Stop & Fare (From Fee Master)*</label>
+                          <select
+                            name="stopId"
+                            value={formData.stopId}
+                            onChange={handleStopChange}
+                            required
+                          >
+                            <option value="">-- Select Stop Area --</option>
+                            {stopList.map((stop) => (
+                              <option key={stop.id} value={stop.id}>
+                                {stop.routeName} - ₹{stop.fee}/month
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="modal-actions">
                       <button
@@ -970,7 +1100,7 @@ function Students() {
                         <div>
                           <span>Class & Roll:</span>
                           <strong>
-                            {viewStudent.class} (Roll:{" "}
+                            {viewStudent.class} - {viewStudent.section} (Roll:{" "}
                             {viewStudent.rollNo || "N/A"})
                           </strong>
                         </div>
@@ -1019,10 +1149,10 @@ function Students() {
                           <strong>{viewStudent.feeCategory}</strong>
                         </div>
                         <div>
-                          <span>Transport Opted:</span>
+                          <span>Transport Details:</span>
                           <strong>
                             {viewStudent.isTransport
-                              ? `${viewStudent.routeName} (₹${viewStudent.transportFee}/month)`
+                              ? `${viewStudent.busName || "Bus Assigned"} | Stop: ${viewStudent.stopName} (₹${viewStudent.transportFee}/mo)`
                               : "No Transport Facility"}
                           </strong>
                         </div>
