@@ -17,61 +17,22 @@ import { toast } from "react-toastify";
 import "./Gallery.css";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
+import galleryService from "../../services/galleryService"; // API Service Import
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
-const INITIAL_GALLERY_DATA = [
-  {
-    id: 1,
-    title: "Annual Sports Day 2026",
-    category: "Sports",
-    mediaType: "image",
-    mediaUrl:
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=600&q=80",
-    date: "2026-02-15",
-    description: "Students participating in track and field events.",
-  },
-  {
-    id: 2,
-    title: "Cultural Fest Dance Performance",
-    category: "Events",
-    mediaType: "video",
-    mediaUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
-    date: "2026-01-20",
-    description: "Annual dance competition highlights video.",
-  },
-  {
-    id: 3,
-    title: "Science Exhibition Highlights",
-    category: "Academic",
-    mediaType: "image",
-    mediaUrl:
-      "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80",
-    date: "2025-12-10",
-    description: "Working science models showcased by senior students.",
-  },
-];
-
 const Gallery = () => {
-  // 1. Data State with LocalStorage Persistence
-  const [galleryItems, setGalleryItems] = useState(() => {
-    const saved = localStorage.getItem("gallery_items_data");
-    return saved ? JSON.parse(saved) : INITIAL_GALLERY_DATA;
-  });
+  const [galleryItems, setGalleryItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sync state changes to LocalStorage
-  useEffect(() => {
-    localStorage.setItem("gallery_items_data", JSON.stringify(galleryItems));
-  }, [galleryItems]);
-
-  // 2. Filters & Pagination State
+  // Filters & Pagination State
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  // 3. Modals State
+  // Modals State
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -80,7 +41,6 @@ const Gallery = () => {
   const [itemToDelete, setItemToDelete] = useState(null);
 
   const initialFormState = {
-    id: null,
     title: "",
     category: "Events",
     mediaType: "image",
@@ -91,13 +51,31 @@ const Gallery = () => {
 
   const [formData, setFormData] = useState(initialFormState);
 
-  // 4. Memoized Dynamic Filtering
+  // 1. Fetch Data from Backend
+  const fetchGalleryItems = async () => {
+    setLoading(true);
+    try {
+      const data = await galleryService.getAllGalleryItems();
+      setGalleryItems(data || []);
+    } catch (error) {
+      toast.error("Failed to fetch gallery items from server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGalleryItems();
+  }, []);
+
+  // Memoized Dynamic Filtering
   const filteredItems = useMemo(() => {
     return galleryItems.filter((item) => {
       const searchText = search.toLowerCase();
       const matchesSearch =
         item.title.toLowerCase().includes(searchText) ||
-        item.description.toLowerCase().includes(searchText) ||
+        (item.description &&
+          item.description.toLowerCase().includes(searchText)) ||
         item.category.toLowerCase().includes(searchText);
 
       const matchesCategory =
@@ -122,7 +100,7 @@ const Gallery = () => {
     toast.info("Filters reset successfully!");
   };
 
-  // 5. CSV Metadata Export
+  // CSV Metadata Export
   const handleExportCSV = () => {
     if (filteredItems.length === 0) {
       toast.warning("No media records available to export!");
@@ -132,7 +110,7 @@ const Gallery = () => {
     const headers = ["ID,Title,Category,Media Type,Date,Media URL,Description"];
     const csvRows = filteredItems.map((item) =>
       [
-        item.id,
+        item._id,
         `"${item.title.replace(/"/g, '""')}"`,
         item.category,
         item.mediaType,
@@ -175,15 +153,22 @@ const Gallery = () => {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  // 2. Delete Action via API
+  const confirmDelete = async () => {
     if (!itemToDelete) return;
-    setGalleryItems((prev) => prev.filter((g) => g.id !== itemToDelete.id));
-    toast.success(`Deleted "${itemToDelete.title}" successfully!`);
-    setItemToDelete(null);
-    setShowDeleteModal(false);
+    try {
+      await galleryService.deleteGalleryItem(itemToDelete._id);
+      setGalleryItems((prev) => prev.filter((g) => g._id !== itemToDelete._id));
+      toast.success(`Deleted "${itemToDelete.title}" successfully!`);
+      setItemToDelete(null);
+      setShowDeleteModal(false);
+    } catch (error) {
+      toast.error("Failed to delete media.");
+    }
   };
 
-  const handleFormSubmit = (e) => {
+  // 3. Save / Update via API
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.title.trim() || !formData.mediaUrl.trim()) {
@@ -191,21 +176,25 @@ const Gallery = () => {
       return;
     }
 
-    if (formData.id) {
-      setGalleryItems((prev) =>
-        prev.map((g) => (g.id === formData.id ? { ...formData } : g)),
-      );
-      toast.success("Gallery item updated successfully!");
-    } else {
-      const newItem = {
-        ...formData,
-        id: Date.now(),
-      };
-      setGalleryItems((prev) => [newItem, ...prev]);
-      toast.success("New media added to gallery!");
+    try {
+      if (formData._id) {
+        const updated = await galleryService.updateGalleryItem(
+          formData._id,
+          formData,
+        );
+        setGalleryItems((prev) =>
+          prev.map((g) => (g._id === formData._id ? updated : g)),
+        );
+        toast.success("Gallery item updated successfully!");
+      } else {
+        const added = await galleryService.addGalleryItem(formData);
+        setGalleryItems((prev) => [added, ...prev]);
+        toast.success("New media added to gallery!");
+      }
+      setIsAddEditOpen(false);
+    } catch (error) {
+      toast.error("Action failed. Please try again.");
     }
-
-    setIsAddEditOpen(false);
   };
 
   return (
@@ -217,7 +206,6 @@ const Gallery = () => {
 
         <div className="admin-dashboard-content">
           <div className="gallery-page">
-            {/* Header & Controls */}
             <div className="gallery-header">
               <h1>
                 <FaImages className="header-icon" /> Gallery Management
@@ -287,67 +275,71 @@ const Gallery = () => {
               </div>
             </div>
 
-            {/* Gallery Grid */}
-            <div className="gallery-grid">
-              {currentItems.length > 0 ? (
-                currentItems.map((item) => (
-                  <div className="gallery-card" key={item.id}>
-                    <div className="gallery-card-img-wrapper">
-                      {item.mediaType === "video" ? (
-                        <div className="video-thumbnail-container">
-                          <video src={item.mediaUrl} preload="metadata" />
-                          <div className="video-play-badge">
-                            <FaPlay />
-                          </div>
-                        </div>
-                      ) : (
-                        <img src={item.mediaUrl} alt={item.title} />
-                      )}
-
-                      <span className="gallery-type-badge">
+            {loading ? (
+              <div style={{ textAlign: "center", padding: "20px" }}>
+                Loading gallery...
+              </div>
+            ) : (
+              <div className="gallery-grid">
+                {currentItems.length > 0 ? (
+                  currentItems.map((item) => (
+                    <div className="gallery-card" key={item._id}>
+                      <div className="gallery-card-img-wrapper">
                         {item.mediaType === "video" ? (
-                          <FaVideo />
+                          <div className="video-thumbnail-container">
+                            <video src={item.mediaUrl} preload="metadata" />
+                            <div className="video-play-badge">
+                              <FaPlay />
+                            </div>
+                          </div>
                         ) : (
-                          <FaImages />
-                        )}{" "}
-                        {item.category}
-                      </span>
+                          <img src={item.mediaUrl} alt={item.title} />
+                        )}
 
-                      <div className="gallery-card-overlay">
-                        <button
-                          onClick={() => handleView(item)}
-                          title="View / Play"
-                        >
-                          <FaEye />
-                        </button>
-                        <button onClick={() => handleEdit(item)} title="Edit">
-                          <FaEdit />
-                        </button>
-                        <button
-                          onClick={() => promptDelete(item)}
-                          title="Delete"
-                        >
-                          <FaTrash />
-                        </button>
+                        <span className="gallery-type-badge">
+                          {item.mediaType === "video" ? (
+                            <FaVideo />
+                          ) : (
+                            <FaImages />
+                          )}{" "}
+                          {item.category}
+                        </span>
+
+                        <div className="gallery-card-overlay">
+                          <button
+                            onClick={() => handleView(item)}
+                            title="View / Play"
+                          >
+                            <FaEye />
+                          </button>
+                          <button onClick={() => handleEdit(item)} title="Edit">
+                            <FaEdit />
+                          </button>
+                          <button
+                            onClick={() => promptDelete(item)}
+                            title="Delete"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="gallery-card-content">
+                        <span className="gallery-date">{item.date}</span>
+                        <h3>{item.title}</h3>
+                        <p>{item.description}</p>
                       </div>
                     </div>
-
-                    <div className="gallery-card-content">
-                      <span className="gallery-date">{item.date}</span>
-                      <h3>{item.title}</h3>
-                      <p>{item.description}</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="gallery-empty-state">
+                    No images or videos found.
                   </div>
-                ))
-              ) : (
-                <div className="gallery-empty-state">
-                  No images or videos found.
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
-            {/* Pagination Controls */}
-            {filteredItems.length > 0 && (
+            {!loading && filteredItems.length > 0 && (
               <div className="fees-pagination">
                 <button
                   disabled={currentPage === 1}
@@ -376,12 +368,11 @@ const Gallery = () => {
         </div>
       </div>
 
-      {/* Add / Edit Modal */}
       {isAddEditOpen && (
         <div className="gallery-modal-overlay">
           <div className="gallery-modal">
             <div className="gallery-modal-header">
-              <h2>{formData.id ? "Edit Media" : "Add New Media"}</h2>
+              <h2>{formData._id ? "Edit Media" : "Add New Media"}</h2>
               <button
                 onClick={() => setIsAddEditOpen(false)}
                 className="close-modal-btn"
@@ -478,14 +469,13 @@ const Gallery = () => {
               </div>
 
               <button type="submit" className="save-gallery-btn">
-                {formData.id ? "Update Media" : "Save Media"}
+                {formData._id ? "Update Media" : "Save Media"}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* View Modal */}
       {isViewOpen && selectedItem && (
         <div className="gallery-modal-overlay">
           <div className="gallery-modal view-gallery-modal">
@@ -524,7 +514,6 @@ const Gallery = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteModal && itemToDelete && (
         <div className="delete-modal-overlay">
           <div className="delete-modal">
