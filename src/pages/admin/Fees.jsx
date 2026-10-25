@@ -40,49 +40,20 @@ const ACADEMIC_MONTHS = [
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
-const INITIAL_CLASS_FEE_MASTER = { "9-B": 2000, "10-A": 2500, "11-C": 3000 };
-const INITIAL_ANNUAL_FEE_MASTER = { newStudent: 1100, existingStudent: 500 };
-const INITIAL_TRANSPORT_ROUTES = [
-  { id: 1, routeName: "Route 1 - Main City / Station", fee: 500 },
-  { id: 2, routeName: "Route 2 - Bypass / Industrial Area", fee: 800 },
-  { id: 3, routeName: "Route 3 - Suburb / Outer Colony", fee: 1000 },
-];
-
 function Fees() {
-  const [classFeeMaster, setClassFeeMaster] = useState(() => {
-    const saved = localStorage.getItem("fees_class_master");
-    return saved ? JSON.parse(saved) : INITIAL_CLASS_FEE_MASTER;
+  // --- DATABASE CONNECTED MASTER SETUP STATES ---
+  const [classFeeMaster, setClassFeeMaster] = useState({});
+  const [annualFeeMaster, setAnnualFeeMaster] = useState({
+    newStudent: 1100,
+    existingStudent: 500,
   });
-
-  const [annualFeeMaster, setAnnualFeeMaster] = useState(() => {
-    const saved = localStorage.getItem("fees_annual_master");
-    return saved ? JSON.parse(saved) : INITIAL_ANNUAL_FEE_MASTER;
-  });
-
-  const [transportRoutes, setTransportRoutes] = useState(() => {
-    const saved = localStorage.getItem("fees_transport_routes");
-    return saved ? JSON.parse(saved) : INITIAL_TRANSPORT_ROUTES;
-  });
-
-  useEffect(() => {
-    localStorage.setItem("fees_class_master", JSON.stringify(classFeeMaster));
-  }, [classFeeMaster]);
-
-  useEffect(() => {
-    localStorage.setItem("fees_annual_master", JSON.stringify(annualFeeMaster));
-  }, [annualFeeMaster]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "fees_transport_routes",
-      JSON.stringify(transportRoutes),
-    );
-  }, [transportRoutes]);
+  const [transportRoutes, setTransportRoutes] = useState([]);
 
   const [studentsMaster, setStudentsMaster] = useState([]);
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch from DB instead of localStorage
   const fetchInitialData = async () => {
     setLoading(true);
     try {
@@ -91,6 +62,16 @@ function Fees() {
 
       const studentsData = await studentService.getAllStudents();
       setStudentsMaster(studentsData || []);
+
+      // Master Setup Fetch
+      const masterData = await feeService.getMasterSetup();
+      if (masterData) {
+        setAnnualFeeMaster(
+          masterData.annualFees || { newStudent: 1100, existingStudent: 500 },
+        );
+        setClassFeeMaster(masterData.classFees || {});
+        setTransportRoutes(masterData.transportFees || []);
+      }
     } catch (error) {
       toast.error("Failed to fetch records from server.");
     } finally {
@@ -101,6 +82,24 @@ function Fees() {
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  // Save Master Setup to DB Function
+  const saveMasterSetupToDB = async (
+    updatedAnnual,
+    updatedClass,
+    updatedTransport,
+  ) => {
+    try {
+      await feeService.updateMasterSetup({
+        annualFees: updatedAnnual || annualFeeMaster,
+        classFees: updatedClass || classFeeMaster,
+        transportFees: updatedTransport || transportRoutes,
+      });
+      toast.success("Master settings saved successfully!");
+    } catch (error) {
+      toast.error("Failed to save master settings.");
+    }
+  };
 
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
@@ -155,8 +154,6 @@ function Fees() {
 
     const grossTotal = tuitionTotal + transportTotal + annualTotal + examTotal;
     const discount = Number(formData.discount || 0);
-
-    // Net Payable me purana bakaaya bhi joda jayega
     const netTotal = Math.max(0, grossTotal + previousDues - discount);
 
     return {
@@ -257,8 +254,6 @@ function Fees() {
     let previouslyPaidMonths = [];
     let isAnnualPaid = false;
     let isExamPaid = false;
-
-    // Accurate Previous Dues Calculation (Total Billed - Total Paid - Total Discount)
     let totalBilledByStudent = 0;
     let totalPaidByStudent = 0;
     let totalDiscountByStudent = 0;
@@ -286,7 +281,6 @@ function Fees() {
       0,
       totalBilledByStudent - totalPaidByStudent - totalDiscountByStudent,
     );
-
     const studentObj = studentsMaster.find(
       (s) => s.enrollment.toLowerCase() === enroll.toLowerCase(),
     );
@@ -298,8 +292,8 @@ function Fees() {
         (studentObj.firstName
           ? `${studentObj.firstName} ${studentObj.lastName || ""}`.trim()
           : "");
-
       const autoMonthlyFee = classFeeMaster[studentClass] || 0;
+
       let isTransport = studentObj.isTransport || false;
       let routeId = studentObj.routeId || "";
       let autoTransportFee = 0;
@@ -416,32 +410,51 @@ function Fees() {
   const handleFillFullPay = () =>
     setFormData((prev) => ({ ...prev, paidAmount: calculatedTotals.netTotal }));
 
+  // --- DB CONNECTED MASTER HANDLERS ---
+  const handleAnnualFeeMasterChange = (field, val) => {
+    setAnnualFeeMaster((prev) => ({ ...prev, [field]: Number(val) }));
+  };
+
+  const handleSaveAnnualFee = () => {
+    saveMasterSetupToDB(annualFeeMaster, null, null);
+  };
+
   const handleAddClassFee = (e) => {
     e.preventDefault();
     if (!newClass || !newClassFee) return;
-    setClassFeeMaster((prev) => ({ ...prev, [newClass]: Number(newClassFee) }));
-    toast.success(`Class ${newClass} Fee set to ₹${newClassFee}`);
+    const updated = { ...classFeeMaster, [newClass]: Number(newClassFee) };
+    setClassFeeMaster(updated);
+    saveMasterSetupToDB(null, updated, null);
     setNewClass("");
     setNewClassFee("");
+  };
+
+  const handleDeleteClass = (cls) => {
+    const updated = { ...classFeeMaster };
+    delete updated[cls];
+    setClassFeeMaster(updated);
+    saveMasterSetupToDB(null, updated, null);
   };
 
   const handleAddRoute = (e) => {
     e.preventDefault();
     if (!newRouteName || !newRouteFee) return;
-    setTransportRoutes((prev) => [
-      ...prev,
+    const updated = [
+      ...transportRoutes,
       { id: Date.now(), routeName: newRouteName, fee: Number(newRouteFee) },
-    ]);
-    toast.success("Transport Route Added!");
+    ];
+    setTransportRoutes(updated);
+    saveMasterSetupToDB(null, null, updated);
     setNewRouteName("");
     setNewRouteFee("");
   };
 
-  const handleAnnualFeeMasterChange = (field, val) =>
-    setAnnualFeeMaster((prev) => ({ ...prev, [field]: Number(val) }));
+  const handleDeleteRoute = (id) => {
+    const updated = transportRoutes.filter((r) => r.id !== id);
+    setTransportRoutes(updated);
+    saveMasterSetupToDB(null, null, updated);
+  };
 
-  // --- PART 2 IS BELOW ---
-  // 3. Backend Integration: Save / Update Fee
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -454,7 +467,7 @@ function Fees() {
       formData.selectedMonths.length === 0 &&
       !formData.includeAnnual &&
       !formData.includeExam &&
-      calculatedTotals.previousDues === 0 // Agar sirf purana due pay kar raha ho toh allow karein
+      calculatedTotals.previousDues === 0
     ) {
       toast.error("Please select at least one fee component or clear dues.");
       return;
@@ -463,15 +476,9 @@ function Fees() {
     const netTotal = calculatedTotals.netTotal;
     const paidAmount = Number(formData.paidAmount || 0);
 
-    if (paidAmount < 0) {
-      toast.error("Paid amount cannot be negative.");
-      return;
-    }
-
-    if (paidAmount > netTotal) {
-      toast.error("Paid amount cannot exceed payable total.");
-      return;
-    }
+    if (paidAmount < 0) return toast.error("Paid amount cannot be negative.");
+    if (paidAmount > netTotal)
+      return toast.error("Paid amount cannot exceed payable total.");
 
     const dueAmount = netTotal - paidAmount;
     const status =
@@ -480,7 +487,7 @@ function Fees() {
     const feeData = {
       ...formData,
       grossTotal: calculatedTotals.grossTotal,
-      previousDues: calculatedTotals.previousDues, // Naya Bakaaya Logic
+      previousDues: calculatedTotals.previousDues,
       totalFee: netTotal,
       paidAmount,
       dueAmount,
@@ -492,14 +499,12 @@ function Fees() {
 
     try {
       if (editingFee) {
-        // Update API Call
         const updated = await feeService.updateFee(editingFee._id, feeData);
         setFees((prev) =>
           prev.map((fee) => (fee._id === editingFee._id ? updated : fee)),
         );
         toast.success("Fee Record Updated Successfully!");
       } else {
-        // Create API Call
         const added = await feeService.addFee(feeData);
         setFees((prev) => [added, ...prev]);
         toast.success("Fee Collected Successfully!");
@@ -515,13 +520,11 @@ function Fees() {
 
   const handleEdit = (fee) => {
     setEditingFee(fee);
-
     const otherRecords = fees.filter(
       (f) =>
         f.enrollment.toLowerCase() === fee.enrollment.toLowerCase() &&
         f._id !== fee._id,
     );
-
     setFormData({
       ...fee,
       isAnnualPaidHistory: otherRecords.some((r) => r.includeAnnual),
@@ -538,7 +541,6 @@ function Fees() {
     setShowModal(true);
   };
 
-  // 4. Backend Integration: Delete Fee
   const confirmDeleteFee = async () => {
     if (!feeToDelete) return;
     try {
@@ -554,7 +556,6 @@ function Fees() {
 
   const currency = (amount) =>
     `₹ ${Number(amount || 0).toLocaleString("en-IN")}`;
-
   const ReceiptContent = ({ fee, copyType }) => (
     <div className="receipt-box">
       <div className="receipt-header">
@@ -925,7 +926,7 @@ function Fees() {
                     </h3>
                     <div className="setup-inline-form-row">
                       <div>
-                        <label>New Student Annual Charge (₹)</label>
+                        <label>New Student (₹)</label>
                         <input
                           type="number"
                           value={annualFeeMaster.newStudent}
@@ -938,7 +939,7 @@ function Fees() {
                         />
                       </div>
                       <div>
-                        <label>Existing Student Annual Charge (₹)</label>
+                        <label>Existing Student (₹)</label>
                         <input
                           type="number"
                           value={annualFeeMaster.existingStudent}
@@ -949,6 +950,15 @@ function Fees() {
                             )
                           }
                         />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "flex-end" }}>
+                        <button
+                          type="button"
+                          className="add-fee-btn"
+                          onClick={handleSaveAnnualFee}
+                        >
+                          Save
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -977,15 +987,33 @@ function Fees() {
                           required
                         />
                         <button type="submit" className="add-fee-btn">
-                          Save
+                          Add
                         </button>
                       </form>
 
                       <div className="setup-list">
                         {Object.entries(classFeeMaster).map(([cls, fee]) => (
-                          <div key={cls} className="setup-item">
-                            <span>Class {cls}</span>
-                            <strong>₹ {fee} / month</strong>
+                          <div
+                            key={cls}
+                            className="setup-item"
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <div>
+                              <span>Class {cls}</span>{" "}
+                              <strong style={{ marginLeft: "10px" }}>
+                                ₹ {fee} / month
+                              </strong>
+                            </div>
+                            <FaTrash
+                              color="#ef4444"
+                              cursor="pointer"
+                              title="Delete Class Rate"
+                              onClick={() => handleDeleteClass(cls)}
+                            />
                           </div>
                         ))}
                       </div>
@@ -1014,15 +1042,33 @@ function Fees() {
                           required
                         />
                         <button type="submit" className="add-fee-btn">
-                          Add Route
+                          Add
                         </button>
                       </form>
 
                       <div className="setup-list">
                         {transportRoutes.map((route) => (
-                          <div key={route.id} className="setup-item">
-                            <span>{route.routeName}</span>
-                            <strong>₹ {route.fee} / month</strong>
+                          <div
+                            key={route.id}
+                            className="setup-item"
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <div>
+                              <span>{route.routeName}</span>{" "}
+                              <strong style={{ marginLeft: "10px" }}>
+                                ₹ {route.fee} / month
+                              </strong>
+                            </div>
+                            <FaTrash
+                              color="#ef4444"
+                              cursor="pointer"
+                              title="Delete Transport Rate"
+                              onClick={() => handleDeleteRoute(route.id)}
+                            />
                           </div>
                         ))}
                       </div>
