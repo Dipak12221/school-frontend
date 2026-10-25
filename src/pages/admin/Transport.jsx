@@ -22,11 +22,9 @@ const Transport = () => {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters State
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  // Modal & Form State
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
@@ -39,12 +37,11 @@ const Transport = () => {
     driverName: "",
     driverPhone: "",
     status: "Active",
-    stops: [{ stopName: "", fare: "" }],
+    stops: [{ stopName: "" }], // Array of objects bina price ke
   };
 
   const [formData, setFormData] = useState(initialFormState);
 
-  // Fetch Data on Load
   const fetchRoutes = async () => {
     setLoading(true);
     try {
@@ -61,7 +58,6 @@ const Transport = () => {
     fetchRoutes();
   }, []);
 
-  // Filter Logic
   const filteredRoutes = routes.filter((item) => {
     const searchText = search.toLowerCase();
     const matchesSearch =
@@ -83,16 +79,16 @@ const Transport = () => {
   };
 
   // Dynamic Stop Fields Handlers
-  const handleStopChange = (index, field, value) => {
+  const handleStopChange = (index, value) => {
     const updatedStops = [...formData.stops];
-    updatedStops[index][field] = value;
+    updatedStops[index].stopName = value;
     setFormData({ ...formData, stops: updatedStops });
   };
 
   const handleAddStopField = () => {
     setFormData({
       ...formData,
-      stops: [...formData.stops, { stopName: "", fare: "" }],
+      stops: [...formData.stops, { stopName: "" }],
     });
   };
 
@@ -105,7 +101,6 @@ const Transport = () => {
     setFormData({ ...formData, stops: updatedStops });
   };
 
-  // Handlers
   const handleOpenAdd = () => {
     setFormData(initialFormState);
     setIsAddEditOpen(true);
@@ -122,8 +117,8 @@ const Transport = () => {
       status: item.status || "Active",
       stops:
         Array.isArray(item.stops) && item.stops.length > 0
-          ? item.stops.map((s) => ({ stopName: s.stopName, fare: s.fare }))
-          : [{ stopName: "", fare: "" }],
+          ? item.stops.map((s) => ({ stopName: s.stopName }))
+          : [{ stopName: "" }],
     });
     setIsAddEditOpen(true);
   };
@@ -150,14 +145,20 @@ const Transport = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    // Stops array formatting ensure karein
+    // Remove empty stops before sending
     const payload = {
       ...formData,
-      stops: formData.stops.map((s) => ({
-        stopName: s.stopName.trim(),
-        fare: Number(s.fare),
-      })),
+      stops: formData.stops
+        .filter((s) => s.stopName.trim() !== "")
+        .map((s) => ({
+          stopName: s.stopName.trim(),
+        })),
     };
+
+    if (payload.stops.length === 0) {
+      toast.error("Please add at least one valid stop.");
+      return;
+    }
 
     try {
       if (formData._id) {
@@ -180,16 +181,6 @@ const Transport = () => {
     }
   };
 
-  // Helper to render fee range or value
-  const renderFareSummary = (stops) => {
-    if (!Array.isArray(stops) || stops.length === 0) return "-";
-    const fares = stops.map((s) => Number(s.fare)).filter((f) => !isNaN(f));
-    if (fares.length === 0) return "-";
-    const min = Math.min(...fares);
-    const max = Math.max(...fares);
-    return min === max ? `₹${min} / mo` : `₹${min} - ₹${max} / mo`;
-  };
-
   return (
     <div className="admin-dashboard">
       <Sidebar />
@@ -199,7 +190,6 @@ const Transport = () => {
 
         <div className="admin-dashboard-content">
           <div className="transport-page">
-            {/* Header Controls */}
             <div className="transport-header">
               <h1>
                 <FaBus className="header-icon" /> Transport Management
@@ -241,7 +231,6 @@ const Transport = () => {
               </div>
             </div>
 
-            {/* Routes Table */}
             {loading ? (
               <div style={{ textAlign: "center", padding: "20px" }}>
                 Loading Transport Routes...
@@ -255,7 +244,6 @@ const Transport = () => {
                       <th>Vehicle No.</th>
                       <th>Driver & Contact</th>
                       <th>Stops</th>
-                      <th>Monthly Fee</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -304,13 +292,10 @@ const Transport = () => {
                                     }}
                                   >
                                     <FaMapMarkerAlt size={10} color="#64748b" />
-                                    {stop.stopName} (₹{stop.fare})
+                                    {stop.stopName}
                                   </span>
                                 ))}
                             </div>
-                          </td>
-                          <td style={{ fontWeight: "600", color: "#1e293b" }}>
-                            {renderFareSummary(item.stops)}
                           </td>
                           <td>
                             <span
@@ -350,7 +335,7 @@ const Transport = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="7" className="no-records">
+                        <td colSpan="6" className="no-records">
                           No transport routes found.
                         </td>
                       </tr>
@@ -363,7 +348,6 @@ const Transport = () => {
         </div>
       </div>
 
-      {/* Add / Edit Modal */}
       {isAddEditOpen && (
         <div className="transport-modal-overlay">
           <div
@@ -468,7 +452,7 @@ const Transport = () => {
                 </select>
               </div>
 
-              {/* Dynamic Stops & Price Section */}
+              {/* Dynamic Stops Section */}
               <div
                 className="stops-management-section"
                 style={{ marginTop: "10px", marginBottom: "15px" }}
@@ -482,7 +466,7 @@ const Transport = () => {
                   }}
                 >
                   <label style={{ fontWeight: "600", color: "#334155" }}>
-                    Stops & Stop-wise Fare (₹)
+                    Stops Added
                   </label>
                   <button
                     type="button"
@@ -519,20 +503,8 @@ const Transport = () => {
                       required
                       placeholder={`Stop ${index + 1} Name`}
                       value={stop.stopName}
-                      onChange={(e) =>
-                        handleStopChange(index, "stopName", e.target.value)
-                      }
-                      style={{ flex: 3 }}
-                    />
-                    <input
-                      type="number"
-                      required
-                      placeholder="Fare (₹)"
-                      value={stop.fare}
-                      onChange={(e) =>
-                        handleStopChange(index, "fare", e.target.value)
-                      }
-                      style={{ flex: 2 }}
+                      onChange={(e) => handleStopChange(index, e.target.value)}
+                      style={{ flex: 1 }}
                     />
                     {formData.stops.length > 1 && (
                       <button
@@ -610,7 +582,7 @@ const Transport = () => {
                 className="detail-item full-width"
                 style={{ marginTop: "10px" }}
               >
-                <strong>Stops & Fare Breakdown:</strong>
+                <strong>Stops Covered:</strong>
                 <div style={{ marginTop: "8px" }}>
                   <table
                     style={{
@@ -637,14 +609,6 @@ const Transport = () => {
                         >
                           Stop Name
                         </th>
-                        <th
-                          style={{
-                            padding: "8px",
-                            borderBottom: "1px solid #e2e8f0",
-                          }}
-                        >
-                          Fare (₹/month)
-                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -666,15 +630,6 @@ const Transport = () => {
                               }}
                             >
                               {stop.stopName}
-                            </td>
-                            <td
-                              style={{
-                                padding: "8px",
-                                borderBottom: "1px solid #f1f5f9",
-                                fontWeight: "600",
-                              }}
-                            >
-                              ₹{stop.fare}
                             </td>
                           </tr>
                         ))}
