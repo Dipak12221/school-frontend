@@ -19,6 +19,8 @@ import { toast } from "react-toastify";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
 import feeService from "../../services/feeService"; // Backend Service Import
+import studentService from "../../services/studentService"; // Student Backend Service
+
 import "./Fees.css";
 
 const ACADEMIC_MONTHS = [
@@ -45,32 +47,6 @@ const INITIAL_TRANSPORT_ROUTES = [
   { id: 2, routeName: "Route 2 - Bypass / Industrial Area", fee: 800 },
   { id: 3, routeName: "Route 3 - Suburb / Outer Colony", fee: 1000 },
 ];
-const INITIAL_STUDENTS_MASTER = [
-  {
-    enrollment: "STU001",
-    name: "Rahul Kumar",
-    className: "10-A",
-    studentType: "Existing",
-    isTransport: true,
-    routeId: 1,
-  },
-  {
-    enrollment: "STU002",
-    name: "Priya Sharma",
-    className: "9-B",
-    studentType: "New",
-    isTransport: true,
-    routeId: 2,
-  },
-  {
-    enrollment: "STU003",
-    name: "Aman Verma",
-    className: "11-C",
-    studentType: "Existing",
-    isTransport: false,
-    routeId: null,
-  },
-];
 
 function Fees() {
   // 1. MASTER SETTINGS (LocalStorage Persistence)
@@ -89,11 +65,6 @@ function Fees() {
     return saved ? JSON.parse(saved) : INITIAL_TRANSPORT_ROUTES;
   });
 
-  const [studentsMaster] = useState(() => {
-    const saved = localStorage.getItem("students_master_data");
-    return saved ? JSON.parse(saved) : INITIAL_STUDENTS_MASTER;
-  });
-
   useEffect(() => {
     localStorage.setItem("fees_class_master", JSON.stringify(classFeeMaster));
   }, [classFeeMaster]);
@@ -109,24 +80,29 @@ function Fees() {
     );
   }, [transportRoutes]);
 
-  // 2. TRANSACTIONS STATE (MongoDB via API)
+  // 2. TRANSACTIONS & STUDENTS STATE (MongoDB via API)
+  const [studentsMaster, setStudentsMaster] = useState([]);
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchFees = async () => {
+  const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const data = await feeService.getAllFees();
-      setFees(data || []);
+      // MongoDB se real Fees aur Students dono ka data ek sath mangwayein
+      const feesData = await feeService.getAllFees();
+      setFees(feesData || []);
+
+      const studentsData = await studentService.getAllStudents();
+      setStudentsMaster(studentsData || []);
     } catch (error) {
-      toast.error("Failed to fetch fee records from server.");
+      toast.error("Failed to fetch records from server.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchFees();
+    fetchInitialData();
   }, []);
 
   // Filters & Modals State
@@ -299,11 +275,21 @@ function Fees() {
     const studentObj = studentsMaster.find(
       (s) => s.enrollment.toLowerCase() === enroll.toLowerCase(),
     );
+
     if (studentObj) {
-      const autoMonthlyFee = classFeeMaster[studentObj.className] || 0;
+      // Backend database se class aur name ka sahi form nikalna
+      const studentClass = studentObj.className || studentObj.class || "";
+      const fullName =
+        studentObj.name ||
+        (studentObj.firstName
+          ? `${studentObj.firstName} ${studentObj.lastName || ""}`.trim()
+          : "");
+
+      const autoMonthlyFee = classFeeMaster[studentClass] || 0;
       let isTransport = studentObj.isTransport || false;
       let routeId = studentObj.routeId || "";
       let autoTransportFee = 0;
+
       if (isTransport && routeId) {
         const routeObj = transportRoutes.find((r) => r.id === Number(routeId));
         autoTransportFee = routeObj ? routeObj.fee : 0;
@@ -322,8 +308,8 @@ function Fees() {
       setFormData((prev) => ({
         ...prev,
         enrollment: enroll,
-        studentName: studentObj.name,
-        className: studentObj.className,
+        studentName: fullName,
+        className: studentClass,
         studentType: type,
         monthlyFee: autoMonthlyFee,
         annualFee: autoAnnualFee,
@@ -449,7 +435,7 @@ function Fees() {
   const handleAnnualFeeMasterChange = (field, val) =>
     setAnnualFeeMaster((prev) => ({ ...prev, [field]: Number(val) }));
 
-  // Part 2 niche bhej raha hoon...
+  // --- Yahan se Part 2 chalu hoga ---
   // 3. Backend Integration: Save / Update Fee
   const handleSubmit = async (e) => {
     e.preventDefault();
