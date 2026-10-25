@@ -243,6 +243,7 @@ function Fees() {
     window.URL.revokeObjectURL(url);
   };
 
+  // FIX: Updated logic to correctly map stopId for auto-fetch
   const handleEnrollmentChange = (e) => {
     const enroll = e.target.value;
     const existingStudentRecords = fees.filter(
@@ -281,6 +282,7 @@ function Fees() {
       0,
       totalBilledByStudent - totalPaidByStudent - totalDiscountByStudent,
     );
+
     const studentObj = studentsMaster.find(
       (s) => s.enrollment.toLowerCase() === enroll.toLowerCase(),
     );
@@ -294,16 +296,20 @@ function Fees() {
           : "");
       const autoMonthlyFee = classFeeMaster[studentClass] || 0;
 
+      // TRANSPORT FIX: Map stopId correctly
       let isTransport = studentObj.isTransport || false;
-      let routeId = studentObj.routeId || "";
-      let autoTransportFee = 0;
+      let fetchedStopId = studentObj.stopId || studentObj.routeId || "";
+      let autoTransportFee = studentObj.transportFee || 0;
 
-      if (isTransport && routeId) {
-        const routeObj = transportRoutes.find((r) => r.id === Number(routeId));
+      if (isTransport && fetchedStopId && !autoTransportFee) {
+        const routeObj = transportRoutes.find(
+          (r) => r.id.toString() === fetchedStopId.toString(),
+        );
         autoTransportFee = routeObj ? routeObj.fee : 0;
-      } else {
-        isTransport = false;
-        routeId = "";
+      }
+
+      if (!isTransport) {
+        fetchedStopId = "";
         autoTransportFee = 0;
       }
 
@@ -322,7 +328,7 @@ function Fees() {
         monthlyFee: autoMonthlyFee,
         annualFee: autoAnnualFee,
         isTransportOpted: isTransport,
-        selectedRouteId: routeId,
+        selectedRouteId: fetchedStopId,
         transportFee: autoTransportFee,
         paidMonthsHistory: previouslyPaidMonths,
         isAnnualPaidHistory: isAnnualPaid,
@@ -362,6 +368,7 @@ function Fees() {
     }));
   };
 
+  // FIX: Type-safe comparison for Route/Stop selection
   const handleRouteSelect = (e) => {
     const val = e.target.value;
     if (val === "none" || val === "") {
@@ -372,12 +379,13 @@ function Fees() {
         transportFee: 0,
       }));
     } else {
-      const routeId = Number(val);
-      const selectedRoute = transportRoutes.find((r) => r.id === routeId);
+      const selectedRoute = transportRoutes.find(
+        (r) => r.id.toString() === val.toString(),
+      );
       setFormData((prev) => ({
         ...prev,
         isTransportOpted: true,
-        selectedRouteId: routeId,
+        selectedRouteId: val,
         transportFee: selectedRoute ? selectedRoute.fee : 0,
       }));
     }
@@ -556,6 +564,7 @@ function Fees() {
 
   const currency = (amount) =>
     `₹ ${Number(amount || 0).toLocaleString("en-IN")}`;
+
   const ReceiptContent = ({ fee, copyType }) => (
     <div className="receipt-box">
       <div className="receipt-header">
@@ -677,7 +686,6 @@ function Fees() {
       </div>
     </div>
   );
-
   return (
     <div className="admin-dashboard">
       <Sidebar />
