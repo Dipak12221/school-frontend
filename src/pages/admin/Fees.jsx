@@ -18,6 +18,7 @@ import {
 import { toast } from "react-toastify";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
+import feeService from "../../services/feeService"; // Backend Service Import
 import "./Fees.css";
 
 const ACADEMIC_MONTHS = [
@@ -37,23 +38,13 @@ const ACADEMIC_MONTHS = [
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
-const INITIAL_CLASS_FEE_MASTER = {
-  "9-B": 2000,
-  "10-A": 2500,
-  "11-C": 3000,
-};
-
-const INITIAL_ANNUAL_FEE_MASTER = {
-  newStudent: 1100,
-  existingStudent: 500,
-};
-
+const INITIAL_CLASS_FEE_MASTER = { "9-B": 2000, "10-A": 2500, "11-C": 3000 };
+const INITIAL_ANNUAL_FEE_MASTER = { newStudent: 1100, existingStudent: 500 };
 const INITIAL_TRANSPORT_ROUTES = [
   { id: 1, routeName: "Route 1 - Main City / Station", fee: 500 },
   { id: 2, routeName: "Route 2 - Bypass / Industrial Area", fee: 800 },
   { id: 3, routeName: "Route 3 - Suburb / Outer Colony", fee: 1000 },
 ];
-
 const INITIAL_STUDENTS_MASTER = [
   {
     enrollment: "STU001",
@@ -81,63 +72,8 @@ const INITIAL_STUDENTS_MASTER = [
   },
 ];
 
-const INITIAL_FEES_DATA = [
-  {
-    id: 1,
-    receiptNo: "REC-2026-001",
-    enrollment: "STU001",
-    studentName: "Rahul Kumar",
-    className: "10-A",
-    studentType: "Existing",
-    monthlyFee: 2500,
-    transportFee: 500,
-    paidMonths: ["Apr", "May", "Jun"],
-    selectedMonths: ["Jul", "Aug"],
-    includeAnnual: true,
-    annualFee: 500,
-    includeExam: false,
-    examFee: 500,
-    grossTotal: 6500,
-    discount: 500,
-    totalFee: 6000,
-    paidAmount: 5000,
-    dueAmount: 1000,
-    status: "Partial",
-    paymentDate: "2026-08-01",
-    paymentMode: "UPI",
-    isTransportOpted: true,
-    selectedRouteId: 1,
-  },
-  {
-    id: 2,
-    receiptNo: "REC-2026-002",
-    enrollment: "STU002",
-    studentName: "Priya Sharma",
-    className: "9-B",
-    studentType: "New",
-    monthlyFee: 2000,
-    transportFee: 800,
-    paidMonths: ["Apr", "May"],
-    selectedMonths: ["Jun"],
-    includeAnnual: true,
-    annualFee: 1100,
-    includeExam: true,
-    examFee: 500,
-    grossTotal: 4400,
-    discount: 0,
-    totalFee: 4400,
-    paidAmount: 4400,
-    dueAmount: 0,
-    status: "Paid",
-    paymentDate: "2026-08-20",
-    paymentMode: "Cash",
-    isTransportOpted: true,
-    selectedRouteId: 2,
-  },
-];
-
 function Fees() {
-  // 1. MASTER SETTINGS (With LocalStorage Persistence)
+  // 1. MASTER SETTINGS (LocalStorage Persistence)
   const [classFeeMaster, setClassFeeMaster] = useState(() => {
     const saved = localStorage.getItem("fees_class_master");
     return saved ? JSON.parse(saved) : INITIAL_CLASS_FEE_MASTER;
@@ -158,13 +94,6 @@ function Fees() {
     return saved ? JSON.parse(saved) : INITIAL_STUDENTS_MASTER;
   });
 
-  // 2. TRANSACTIONS STATE (With LocalStorage Persistence)
-  const [fees, setFees] = useState(() => {
-    const saved = localStorage.getItem("fees_transaction_records");
-    return saved ? JSON.parse(saved) : INITIAL_FEES_DATA;
-  });
-
-  // Sync state to LocalStorage
   useEffect(() => {
     localStorage.setItem("fees_class_master", JSON.stringify(classFeeMaster));
   }, [classFeeMaster]);
@@ -180,11 +109,27 @@ function Fees() {
     );
   }, [transportRoutes]);
 
-  useEffect(() => {
-    localStorage.setItem("fees_transaction_records", JSON.stringify(fees));
-  }, [fees]);
+  // 2. TRANSACTIONS STATE (MongoDB via API)
+  const [fees, setFees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Filters & Modals
+  const fetchFees = async () => {
+    setLoading(true);
+    try {
+      const data = await feeService.getAllFees();
+      setFees(data || []);
+    } catch (error) {
+      toast.error("Failed to fetch fee records from server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFees();
+  }, []);
+
+  // Filters & Modals State
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -224,7 +169,7 @@ function Fees() {
 
   const [formData, setFormData] = useState(initialForm);
 
-  // Auto Calculations using useMemo
+  // Auto Calculations
   const calculatedTotals = useMemo(() => {
     const monthsCount = formData.selectedMonths.length;
     const tuitionTotal = monthsCount * Number(formData.monthlyFee || 0);
@@ -240,25 +185,15 @@ function Fees() {
     const discount = Number(formData.discount || 0);
     const netTotal = Math.max(0, grossTotal - discount);
 
-    return {
-      monthsCount,
-      tuitionTotal,
-      transportTotal,
-      grossTotal,
-      netTotal,
-    };
+    return { monthsCount, tuitionTotal, transportTotal, grossTotal, netTotal };
   }, [formData]);
 
-  // Pagination
+  // Pagination & Display Setup
   const [currentPage, setCurrentPage] = useState(1);
   const feesPerPage = 8;
-
-  // Print & View Modals
   const [printModalFee, setPrintModalFee] = useState(null);
   const [viewingFee, setViewingFee] = useState(null);
   const [printMode, setPrintMode] = useState("split");
-
-  // Delete Modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [feeToDelete, setFeeToDelete] = useState(null);
 
@@ -301,15 +236,11 @@ function Fees() {
 
   // CSV Export Utility
   const handleExportCSV = () => {
-    if (filteredFees.length === 0) {
-      toast.warning("No fee records available to export!");
-      return;
-    }
-
+    if (filteredFees.length === 0)
+      return toast.warning("No fee records available to export!");
     const headers = [
       "Receipt No,Enrollment,Student Name,Class,Type,Months Paid,Gross Total,Discount,Net Payable,Paid Amount,Due Amount,Status,Payment Date,Payment Mode",
     ];
-
     const csvRows = filteredFees.map((f) =>
       [
         f.receiptNo,
@@ -328,7 +259,6 @@ function Fees() {
         f.paymentMode,
       ].join(","),
     );
-
     const blob = new Blob([[headers, ...csvRows].join("\n")], {
       type: "text/csv",
     });
@@ -341,14 +271,12 @@ function Fees() {
     toast.success("Fee Report Exported Successfully!");
   };
 
-  // Helper: Enrollment Auto-Fetch Details
   const handleEnrollmentChange = (e) => {
     const enroll = e.target.value;
-
     const existingStudentRecords = fees.filter(
       (f) =>
         f.enrollment.toLowerCase() === enroll.toLowerCase() &&
-        f.id !== editingFee?.id,
+        f._id !== editingFee?._id,
     );
 
     let previouslyPaidMonths = [];
@@ -371,13 +299,11 @@ function Fees() {
     const studentObj = studentsMaster.find(
       (s) => s.enrollment.toLowerCase() === enroll.toLowerCase(),
     );
-
     if (studentObj) {
       const autoMonthlyFee = classFeeMaster[studentObj.className] || 0;
       let isTransport = studentObj.isTransport || false;
       let routeId = studentObj.routeId || "";
       let autoTransportFee = 0;
-
       if (isTransport && routeId) {
         const routeObj = transportRoutes.find((r) => r.id === Number(routeId));
         autoTransportFee = routeObj ? routeObj.fee : 0;
@@ -444,12 +370,10 @@ function Fees() {
 
   const handleClassSelect = (e) => {
     const selectedClass = e.target.value;
-    const autoClassFee = classFeeMaster[selectedClass] || 0;
-
     setFormData((prev) => ({
       ...prev,
       className: selectedClass,
-      monthlyFee: autoClassFee,
+      monthlyFee: classFeeMaster[selectedClass] || 0,
     }));
   };
 
@@ -476,18 +400,12 @@ function Fees() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-
     if (type === "checkbox") {
-      if (name === "includeAnnual" && checked && formData.isAnnualPaidHistory) {
-        toast.warning("Is student ka Annual Fee pehle hi jama ho chuka hai!");
-        return;
-      }
-      if (name === "includeExam" && checked && formData.isExamPaidHistory) {
-        toast.warning("Is student ka Exam Fee pehle hi jama ho chuka hai!");
-        return;
-      }
+      if (name === "includeAnnual" && checked && formData.isAnnualPaidHistory)
+        return toast.warning("Annual Fee already paid!");
+      if (name === "includeExam" && checked && formData.isExamPaidHistory)
+        return toast.warning("Exam Fee already paid!");
     }
-
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -496,33 +414,21 @@ function Fees() {
 
   const handleMonthToggle = (month) => {
     if (formData.paidMonthsHistory.includes(month)) return;
-
     setFormData((prev) => {
-      const exists = prev.selectedMonths.includes(month);
-      const updatedMonths = exists
+      const updatedMonths = prev.selectedMonths.includes(month)
         ? prev.selectedMonths.filter((m) => m !== month)
         : [...prev.selectedMonths, month];
-
       return { ...prev, selectedMonths: updatedMonths };
     });
   };
 
-  const handleFillFullPay = () => {
-    setFormData((prev) => ({
-      ...prev,
-      paidAmount: calculatedTotals.netTotal,
-    }));
-  };
+  const handleFillFullPay = () =>
+    setFormData((prev) => ({ ...prev, paidAmount: calculatedTotals.netTotal }));
 
   const handleAddClassFee = (e) => {
     e.preventDefault();
     if (!newClass || !newClassFee) return;
-
-    setClassFeeMaster((prev) => ({
-      ...prev,
-      [newClass]: Number(newClassFee),
-    }));
-
+    setClassFeeMaster((prev) => ({ ...prev, [newClass]: Number(newClassFee) }));
     toast.success(`Class ${newClass} Fee set to ₹${newClassFee}`);
     setNewClass("");
     setNewClassFee("");
@@ -531,27 +437,21 @@ function Fees() {
   const handleAddRoute = (e) => {
     e.preventDefault();
     if (!newRouteName || !newRouteFee) return;
-
-    const newEntry = {
-      id: Date.now(),
-      routeName: newRouteName,
-      fee: Number(newRouteFee),
-    };
-
-    setTransportRoutes((prev) => [...prev, newEntry]);
-    toast.success("Transport Route Added Successfully!");
+    setTransportRoutes((prev) => [
+      ...prev,
+      { id: Date.now(), routeName: newRouteName, fee: Number(newRouteFee) },
+    ]);
+    toast.success("Transport Route Added!");
     setNewRouteName("");
     setNewRouteFee("");
   };
 
-  const handleAnnualFeeMasterChange = (field, val) => {
-    setAnnualFeeMaster((prev) => ({
-      ...prev,
-      [field]: Number(val),
-    }));
-  };
+  const handleAnnualFeeMasterChange = (field, val) =>
+    setAnnualFeeMaster((prev) => ({ ...prev, [field]: Number(val) }));
 
-  const handleSubmit = (e) => {
+  // Part 2 niche bhej raha hoon...
+  // 3. Backend Integration: Save / Update Fee
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.enrollment || !formData.studentName) {
@@ -597,23 +497,27 @@ function Fees() {
         : `REC-${Date.now().toString().slice(-6)}`,
     };
 
-    if (editingFee) {
-      setFees((prev) =>
-        prev.map((fee) =>
-          fee.id === editingFee.id ? { ...fee, ...feeData } : fee,
-        ),
-      );
-      toast.success("Fee Record Updated Successfully!");
-    } else {
-      const newFeeRecord = { id: Date.now(), ...feeData };
-      setFees((prev) => [newFeeRecord, ...prev]);
-      toast.success("Fee Collected Successfully!");
-      setPrintModalFee(newFeeRecord);
+    try {
+      if (editingFee) {
+        // Update API Call
+        const updated = await feeService.updateFee(editingFee._id, feeData);
+        setFees((prev) =>
+          prev.map((fee) => (fee._id === editingFee._id ? updated : fee)),
+        );
+        toast.success("Fee Record Updated Successfully!");
+      } else {
+        // Create API Call
+        const added = await feeService.addFee(feeData);
+        setFees((prev) => [added, ...prev]);
+        toast.success("Fee Collected Successfully!");
+        setPrintModalFee(added);
+      }
+      setFormData(initialForm);
+      setEditingFee(null);
+      setShowModal(false);
+    } catch (error) {
+      toast.error("Failed to process transaction.");
     }
-
-    setFormData(initialForm);
-    setEditingFee(null);
-    setShowModal(false);
   };
 
   const handleEdit = (fee) => {
@@ -622,44 +526,36 @@ function Fees() {
     const otherRecords = fees.filter(
       (f) =>
         f.enrollment.toLowerCase() === fee.enrollment.toLowerCase() &&
-        f.id !== fee.id,
+        f._id !== fee._id,
     );
 
     setFormData({
-      enrollment: fee.enrollment,
-      studentName: fee.studentName,
-      className: fee.className,
-      studentType: fee.studentType || "Existing",
-      monthlyFee: fee.monthlyFee || 0,
-      isTransportOpted: fee.isTransportOpted || false,
-      selectedRouteId: fee.selectedRouteId || "",
-      transportFee: fee.transportFee || 0,
-      paidMonthsHistory: fee.paidMonths || [],
+      ...fee,
       isAnnualPaidHistory: otherRecords.some((r) => r.includeAnnual),
       isExamPaidHistory: otherRecords.some((r) => r.includeExam),
-      selectedMonths: fee.selectedMonths || [],
-      includeAnnual: fee.includeAnnual || false,
       annualFee:
         fee.annualFee ||
         (fee.studentType === "New"
           ? annualFeeMaster.newStudent
           : annualFeeMaster.existingStudent),
-      includeExam: fee.includeExam || false,
       examFee: fee.examFee || 500,
-      discount: fee.discount || 0,
-      paidAmount: fee.paidAmount,
-      paymentDate: fee.paymentDate,
       paymentMode: fee.paymentMode || "Cash",
     });
     setShowModal(true);
   };
 
-  const confirmDeleteFee = () => {
+  // 4. Backend Integration: Delete Fee
+  const confirmDeleteFee = async () => {
     if (!feeToDelete) return;
-    setFees((prev) => prev.filter((fee) => fee.id !== feeToDelete.id));
-    toast.success("Record Deleted Successfully!");
-    setFeeToDelete(null);
-    setShowDeleteModal(false);
+    try {
+      await feeService.deleteFee(feeToDelete._id);
+      setFees((prev) => prev.filter((fee) => fee._id !== feeToDelete._id));
+      toast.success("Record Deleted Successfully!");
+      setFeeToDelete(null);
+      setShowDeleteModal(false);
+    } catch (error) {
+      toast.error("Failed to delete record.");
+    }
   };
 
   const currency = (amount) =>
@@ -877,109 +773,115 @@ function Fees() {
             </div>
 
             {/* Fees Table */}
-            <div className="fees-table-container">
-              <table className="fees-table">
-                <thead>
-                  <tr>
-                    <th>Receipt No</th>
-                    <th>Enrollment</th>
-                    <th>Student Name</th>
-                    <th>Class</th>
-                    <th>Type</th>
-                    <th>Months Paid</th>
-                    <th>Total Payable</th>
-                    <th>Paid</th>
-                    <th>Due</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentFees.length > 0 ? (
-                    currentFees.map((fee) => (
-                      <tr key={fee.id}>
-                        <td>
-                          <strong>{fee.receiptNo}</strong>
-                        </td>
-                        <td>{fee.enrollment}</td>
-                        <td>{fee.studentName}</td>
-                        <td>{fee.className}</td>
-                        <td>
-                          <span
-                            className={`student-type-pill ${
-                              fee.studentType === "New" ? "new" : "existing"
-                            }`}
-                          >
-                            {fee.studentType || "Existing"}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="months-tag">
-                            {fee.selectedMonths?.length
-                              ? fee.selectedMonths.join(", ")
-                              : "None"}
-                          </span>
-                        </td>
-                        <td>{currency(fee.totalFee)}</td>
-                        <td>{currency(fee.paidAmount)}</td>
-                        <td>{currency(fee.dueAmount)}</td>
-                        <td>
-                          <span
-                            className={`fees-status ${fee.status.toLowerCase()}`}
-                          >
-                            {fee.status}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="fee-action-buttons">
-                            <button
-                              className="fee-view-btn"
-                              onClick={() => setViewingFee(fee)}
-                              title="View Receipt"
+            {loading ? (
+              <div style={{ textAlign: "center", padding: "20px" }}>
+                Loading Fee Records...
+              </div>
+            ) : (
+              <div className="fees-table-container">
+                <table className="fees-table">
+                  <thead>
+                    <tr>
+                      <th>Receipt No</th>
+                      <th>Enrollment</th>
+                      <th>Student Name</th>
+                      <th>Class</th>
+                      <th>Type</th>
+                      <th>Months Paid</th>
+                      <th>Total Payable</th>
+                      <th>Paid</th>
+                      <th>Due</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentFees.length > 0 ? (
+                      currentFees.map((fee) => (
+                        <tr key={fee._id}>
+                          <td>
+                            <strong>{fee.receiptNo}</strong>
+                          </td>
+                          <td>{fee.enrollment}</td>
+                          <td>{fee.studentName}</td>
+                          <td>{fee.className}</td>
+                          <td>
+                            <span
+                              className={`student-type-pill ${
+                                fee.studentType === "New" ? "new" : "existing"
+                              }`}
                             >
-                              <FaEye />
-                            </button>
-                            <button
-                              className="fee-print-btn"
-                              onClick={() => setPrintModalFee(fee)}
-                              title="Print Receipt"
+                              {fee.studentType || "Existing"}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="months-tag">
+                              {fee.selectedMonths?.length
+                                ? fee.selectedMonths.join(", ")
+                                : "None"}
+                            </span>
+                          </td>
+                          <td>{currency(fee.totalFee)}</td>
+                          <td>{currency(fee.paidAmount)}</td>
+                          <td>{currency(fee.dueAmount)}</td>
+                          <td>
+                            <span
+                              className={`fees-status ${fee.status.toLowerCase()}`}
                             >
-                              <FaPrint />
-                            </button>
-                            <button
-                              className="fee-edit-btn"
-                              onClick={() => handleEdit(fee)}
-                              title="Edit Record"
-                            >
-                              <FaEdit />
-                            </button>
-                            <button
-                              className="fee-delete-btn"
-                              onClick={() => {
-                                setFeeToDelete(fee);
-                                setShowDeleteModal(true);
-                              }}
-                              title="Delete Record"
-                            >
-                              <FaTrash />
-                            </button>
-                          </div>
+                              {fee.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="fee-action-buttons">
+                              <button
+                                className="fee-view-btn"
+                                onClick={() => setViewingFee(fee)}
+                                title="View Receipt"
+                              >
+                                <FaEye />
+                              </button>
+                              <button
+                                className="fee-print-btn"
+                                onClick={() => setPrintModalFee(fee)}
+                                title="Print Receipt"
+                              >
+                                <FaPrint />
+                              </button>
+                              <button
+                                className="fee-edit-btn"
+                                onClick={() => handleEdit(fee)}
+                                title="Edit Record"
+                              >
+                                <FaEdit />
+                              </button>
+                              <button
+                                className="fee-delete-btn"
+                                onClick={() => {
+                                  setFeeToDelete(fee);
+                                  setShowDeleteModal(true);
+                                }}
+                                title="Delete Record"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="11" className="no-fees">
+                          No Fee Records Found
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="11" className="no-fees">
-                        No Fee Records Found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Pagination Controls */}
-            {filteredFees.length > 0 && (
+            {!loading && filteredFees.length > 0 && (
               <div className="fees-pagination">
                 <button
                   disabled={currentPage === 1}
