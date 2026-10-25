@@ -18,8 +18,8 @@ import {
 import { toast } from "react-toastify";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
-import feeService from "../../services/feeService"; // Backend Service Import
-import studentService from "../../services/studentService"; // Student Backend Service
+import feeService from "../../services/feeService";
+import studentService from "../../services/studentService";
 
 import "./Fees.css";
 
@@ -49,7 +49,6 @@ const INITIAL_TRANSPORT_ROUTES = [
 ];
 
 function Fees() {
-  // 1. MASTER SETTINGS (LocalStorage Persistence)
   const [classFeeMaster, setClassFeeMaster] = useState(() => {
     const saved = localStorage.getItem("fees_class_master");
     return saved ? JSON.parse(saved) : INITIAL_CLASS_FEE_MASTER;
@@ -80,7 +79,6 @@ function Fees() {
     );
   }, [transportRoutes]);
 
-  // 2. TRANSACTIONS & STUDENTS STATE (MongoDB via API)
   const [studentsMaster, setStudentsMaster] = useState([]);
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +86,6 @@ function Fees() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      // MongoDB se real Fees aur Students dono ka data ek sath mangwayein
       const feesData = await feeService.getAllFees();
       setFees(feesData || []);
 
@@ -105,7 +102,6 @@ function Fees() {
     fetchInitialData();
   }, []);
 
-  // Filters & Modals State
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -114,7 +110,6 @@ function Fees() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editingFee, setEditingFee] = useState(null);
 
-  // Setup Form States
   const [newClass, setNewClass] = useState("");
   const [newClassFee, setNewClassFee] = useState("");
   const [newRouteName, setNewRouteName] = useState("");
@@ -137,6 +132,7 @@ function Fees() {
     annualFee: annualFeeMaster.existingStudent,
     includeExam: false,
     examFee: 500,
+    previousDues: 0,
     discount: 0,
     paidAmount: "",
     paymentDate: getTodayDateString(),
@@ -145,7 +141,6 @@ function Fees() {
 
   const [formData, setFormData] = useState(initialForm);
 
-  // Auto Calculations
   const calculatedTotals = useMemo(() => {
     const monthsCount = formData.selectedMonths.length;
     const tuitionTotal = monthsCount * Number(formData.monthlyFee || 0);
@@ -156,15 +151,24 @@ function Fees() {
       ? Number(formData.annualFee || 0)
       : 0;
     const examTotal = formData.includeExam ? Number(formData.examFee || 0) : 0;
+    const previousDues = Number(formData.previousDues || 0);
 
     const grossTotal = tuitionTotal + transportTotal + annualTotal + examTotal;
     const discount = Number(formData.discount || 0);
-    const netTotal = Math.max(0, grossTotal - discount);
 
-    return { monthsCount, tuitionTotal, transportTotal, grossTotal, netTotal };
+    // Net Payable me purana bakaaya bhi joda jayega
+    const netTotal = Math.max(0, grossTotal + previousDues - discount);
+
+    return {
+      monthsCount,
+      tuitionTotal,
+      transportTotal,
+      grossTotal,
+      previousDues,
+      netTotal,
+    };
   }, [formData]);
 
-  // Pagination & Display Setup
   const [currentPage, setCurrentPage] = useState(1);
   const feesPerPage = 8;
   const [printModalFee, setPrintModalFee] = useState(null);
@@ -173,7 +177,6 @@ function Fees() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [feeToDelete, setFeeToDelete] = useState(null);
 
-  // Dynamic Filtering Logic
   const filteredFees = useMemo(() => {
     return fees.filter((fee) => {
       const text = search.toLowerCase();
@@ -202,7 +205,6 @@ function Fees() {
     setStatusFilter("");
     setDateFilter("");
     setCurrentPage(1);
-    toast.info("Filters reset to default.");
   };
 
   const handleSetToday = () => {
@@ -210,12 +212,11 @@ function Fees() {
     setCurrentPage(1);
   };
 
-  // CSV Export Utility
   const handleExportCSV = () => {
     if (filteredFees.length === 0)
-      return toast.warning("No fee records available to export!");
+      return toast.warning("No records to export!");
     const headers = [
-      "Receipt No,Enrollment,Student Name,Class,Type,Months Paid,Gross Total,Discount,Net Payable,Paid Amount,Due Amount,Status,Payment Date,Payment Mode",
+      "Receipt No,Enrollment,Student Name,Class,Months Paid,Gross,Previous Dues,Discount,Net Payable,Paid,Due,Status,Date",
     ];
     const csvRows = filteredFees.map((f) =>
       [
@@ -223,16 +224,15 @@ function Fees() {
         f.enrollment,
         `"${f.studentName}"`,
         f.className,
-        f.studentType || "Existing",
         `"${(f.selectedMonths || []).join("; ")}"`,
-        f.grossTotal || 0,
-        f.discount || 0,
-        f.totalFee || 0,
-        f.paidAmount || 0,
-        f.dueAmount || 0,
+        f.grossTotal,
+        f.previousDues || 0,
+        f.discount,
+        f.totalFee,
+        f.paidAmount,
+        f.dueAmount,
         f.status,
         f.paymentDate,
-        f.paymentMode,
       ].join(","),
     );
     const blob = new Blob([[headers, ...csvRows].join("\n")], {
@@ -241,10 +241,9 @@ function Fees() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Fee_Collection_Report_${getTodayDateString()}.csv`;
+    a.download = `Fee_Report_${getTodayDateString()}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-    toast.success("Fee Report Exported Successfully!");
   };
 
   const handleEnrollmentChange = (e) => {
@@ -259,6 +258,11 @@ function Fees() {
     let isAnnualPaid = false;
     let isExamPaid = false;
 
+    // Accurate Previous Dues Calculation (Total Billed - Total Paid - Total Discount)
+    let totalBilledByStudent = 0;
+    let totalPaidByStudent = 0;
+    let totalDiscountByStudent = 0;
+
     if (existingStudentRecords.length > 0) {
       previouslyPaidMonths = Array.from(
         new Set(
@@ -270,14 +274,24 @@ function Fees() {
       );
       isAnnualPaid = existingStudentRecords.some((r) => r.includeAnnual);
       isExamPaid = existingStudentRecords.some((r) => r.includeExam);
+
+      existingStudentRecords.forEach((record) => {
+        totalBilledByStudent += record.grossTotal || 0;
+        totalPaidByStudent += record.paidAmount || 0;
+        totalDiscountByStudent += record.discount || 0;
+      });
     }
+
+    const calculatedPreviousDues = Math.max(
+      0,
+      totalBilledByStudent - totalPaidByStudent - totalDiscountByStudent,
+    );
 
     const studentObj = studentsMaster.find(
       (s) => s.enrollment.toLowerCase() === enroll.toLowerCase(),
     );
 
     if (studentObj) {
-      // Backend database se class aur name ka sahi form nikalna
       const studentClass = studentObj.className || studentObj.class || "";
       const fullName =
         studentObj.name ||
@@ -322,22 +336,13 @@ function Fees() {
         includeAnnual: false,
         includeExam: false,
         selectedMonths: [],
+        previousDues: calculatedPreviousDues,
       }));
     } else {
       setFormData((prev) => ({
-        ...prev,
+        ...initialForm,
         enrollment: enroll,
-        studentName: "",
-        className: "",
-        isTransportOpted: false,
-        selectedRouteId: "",
-        transportFee: 0,
-        paidMonthsHistory: previouslyPaidMonths,
-        isAnnualPaidHistory: isAnnualPaid,
-        isExamPaidHistory: isExamPaid,
-        includeAnnual: false,
-        includeExam: false,
-        selectedMonths: [],
+        previousDues: calculatedPreviousDues,
       }));
     }
   };
@@ -435,7 +440,7 @@ function Fees() {
   const handleAnnualFeeMasterChange = (field, val) =>
     setAnnualFeeMaster((prev) => ({ ...prev, [field]: Number(val) }));
 
-  // --- Yahan se Part 2 chalu hoga ---
+  // --- PART 2 IS BELOW ---
   // 3. Backend Integration: Save / Update Fee
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -448,9 +453,10 @@ function Fees() {
     if (
       formData.selectedMonths.length === 0 &&
       !formData.includeAnnual &&
-      !formData.includeExam
+      !formData.includeExam &&
+      calculatedTotals.previousDues === 0 // Agar sirf purana due pay kar raha ho toh allow karein
     ) {
-      toast.error("Please select at least one month or fee component.");
+      toast.error("Please select at least one fee component or clear dues.");
       return;
     }
 
@@ -474,6 +480,7 @@ function Fees() {
     const feeData = {
       ...formData,
       grossTotal: calculatedTotals.grossTotal,
+      previousDues: calculatedTotals.previousDues, // Naya Bakaaya Logic
       totalFee: netTotal,
       paidAmount,
       dueAmount,
@@ -525,6 +532,7 @@ function Fees() {
           ? annualFeeMaster.newStudent
           : annualFeeMaster.existingStudent),
       examFee: fee.examFee || 500,
+      previousDues: fee.previousDues || 0,
       paymentMode: fee.paymentMode || "Cash",
     });
     setShowModal(true);
@@ -621,6 +629,16 @@ function Fees() {
             <tr>
               <td>Exam Fee</td>
               <td className="text-right">{currency(fee.examFee)}</td>
+            </tr>
+          )}
+          {Number(fee.previousDues) > 0 && (
+            <tr className="previous-dues-row">
+              <td>
+                <strong>Previous Dues (Arrears)</strong>
+              </td>
+              <td className="text-right text-danger">
+                <strong>{currency(fee.previousDues)}</strong>
+              </td>
             </tr>
           )}
           {Number(fee.discount) > 0 && (
@@ -1339,9 +1357,17 @@ function Fees() {
                         <strong>{calculatedTotals.monthsCount} Month(s)</strong>
                       </div>
                       <div>
-                        <span>Gross Total</span>
+                        <span>Current Bill Gross</span>
                         <strong>{currency(calculatedTotals.grossTotal)}</strong>
                       </div>
+                      {calculatedTotals.previousDues > 0 && (
+                        <div>
+                          <span className="text-danger">Previous Dues</span>
+                          <strong className="text-danger">
+                            +{currency(calculatedTotals.previousDues)}
+                          </strong>
+                        </div>
+                      )}
                       <div>
                         <span>Discount</span>
                         <strong className="text-success">
@@ -1349,7 +1375,7 @@ function Fees() {
                         </strong>
                       </div>
                       <div>
-                        <span>Payable Total</span>
+                        <span>Net Payable Total</span>
                         <strong>{currency(calculatedTotals.netTotal)}</strong>
                       </div>
                     </div>
