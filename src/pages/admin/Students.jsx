@@ -66,6 +66,7 @@ function Students() {
   // Naye States for Dropdowns
   const [busList, setBusList] = useState([]);
   const [stopList, setStopList] = useState([]);
+  const [feeClasses, setFeeClasses] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [btnLoading, setBtnLoading] = useState(false);
@@ -106,6 +107,9 @@ function Students() {
 
       if (feeMasterRes && feeMasterRes.transportFees) {
         setStopList(feeMasterRes.transportFees);
+      }
+      if (feeMasterRes.classFees) {
+        setFeeClasses(Object.keys(feeMasterRes.classFees));
       }
     } catch (error) {
       toast.error("Failed to load student or related data.");
@@ -809,7 +813,7 @@ function Students() {
                     <div className="form-grid-3">
                       {/* Separated Class & Section */}
                       <div>
-                        <label>Class*</label>
+                        <label>Class* (From Fee Setup)</label>
                         <select
                           name="class"
                           value={formData.class}
@@ -817,22 +821,11 @@ function Students() {
                           required
                         >
                           <option value="">Select Class</option>
-                          <option value="PRE-NURSERY">Pre-Nursery</option>
-                          <option value="NURSERY">Nursery</option>
-                          <option value="LKG">LKG</option>
-                          <option value="UKG">UKG</option>
-                          <option value="1">Class 1</option>
-                          <option value="2">Class 2</option>
-                          <option value="3">Class 3</option>
-                          <option value="4">Class 4</option>
-                          <option value="5">Class 5</option>
-                          <option value="6">Class 6</option>
-                          <option value="7">Class 7</option>
-                          <option value="8">Class 8</option>
-                          <option value="9">Class 9</option>
-                          <option value="10">Class 10</option>
-                          <option value="11">Class 11</option>
-                          <option value="12">Class 12</option>
+                          {feeClasses.map((clsName) => (
+                            <option key={clsName} value={clsName}>
+                              {clsName}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div>
