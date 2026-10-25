@@ -14,15 +14,12 @@ import {
   FaGraduationCap,
   FaUserCheck,
   FaDownload,
-  FaSave,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
 import feeService from "../../services/feeService";
 import studentService from "../../services/studentService";
-import transportService from "../../services/transportService";
-import feeMasterService from "../../services/feeMasterService";
 
 import "./Fees.css";
 
@@ -43,14 +40,45 @@ const ACADEMIC_MONTHS = [
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
+const INITIAL_CLASS_FEE_MASTER = { "9-B": 2000, "10-A": 2500, "11-C": 3000 };
+const INITIAL_ANNUAL_FEE_MASTER = { newStudent: 1100, existingStudent: 500 };
+const INITIAL_TRANSPORT_ROUTES = [
+  { id: 1, routeName: "Route 1 - Main City / Station", fee: 500 },
+  { id: 2, routeName: "Route 2 - Bypass / Industrial Area", fee: 800 },
+  { id: 3, routeName: "Route 3 - Suburb / Outer Colony", fee: 1000 },
+];
+
 function Fees() {
-  const [classFeeMaster, setClassFeeMaster] = useState({});
-  const [annualFeeMaster, setAnnualFeeMaster] = useState({
-    newStudent: 1100,
-    existingStudent: 500,
+  const [classFeeMaster, setClassFeeMaster] = useState(() => {
+    const saved = localStorage.getItem("fees_class_master");
+    return saved ? JSON.parse(saved) : INITIAL_CLASS_FEE_MASTER;
   });
-  const [transportAreas, setTransportAreas] = useState([]);
-  const [transportRoutes, setTransportRoutes] = useState([]);
+
+  const [annualFeeMaster, setAnnualFeeMaster] = useState(() => {
+    const saved = localStorage.getItem("fees_annual_master");
+    return saved ? JSON.parse(saved) : INITIAL_ANNUAL_FEE_MASTER;
+  });
+
+  const [transportRoutes, setTransportRoutes] = useState(() => {
+    const saved = localStorage.getItem("fees_transport_routes");
+    return saved ? JSON.parse(saved) : INITIAL_TRANSPORT_ROUTES;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("fees_class_master", JSON.stringify(classFeeMaster));
+  }, [classFeeMaster]);
+
+  useEffect(() => {
+    localStorage.setItem("fees_annual_master", JSON.stringify(annualFeeMaster));
+  }, [annualFeeMaster]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "fees_transport_routes",
+      JSON.stringify(transportRoutes),
+    );
+  }, [transportRoutes]);
+
   const [studentsMaster, setStudentsMaster] = useState([]);
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,30 +86,13 @@ function Fees() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [feesData, studentsData, routesData, masterSettings] =
-        await Promise.all([
-          feeService.getAllFees(),
-          studentService.getAllStudents(),
-          transportService.getAllRoutes(),
-          feeMasterService.getSettings(),
-        ]);
-
+      const feesData = await feeService.getAllFees();
       setFees(feesData || []);
-      setStudentsMaster(studentsData || []);
-      setTransportRoutes(routesData || []);
 
-      if (masterSettings) {
-        setClassFeeMaster(masterSettings.classFees || {});
-        setAnnualFeeMaster(
-          masterSettings.annualFees || {
-            newStudent: 1100,
-            existingStudent: 500,
-          },
-        );
-        setTransportAreas(masterSettings.transportAreas || []);
-      }
+      const studentsData = await studentService.getAllStudents();
+      setStudentsMaster(studentsData || []);
     } catch (error) {
-      toast.error("Failed to fetch records from database.");
+      toast.error("Failed to fetch records from server.");
     } finally {
       setLoading(false);
     }
@@ -101,8 +112,8 @@ function Fees() {
 
   const [newClass, setNewClass] = useState("");
   const [newClassFee, setNewClassFee] = useState("");
-  const [newAreaName, setNewAreaName] = useState("");
-  const [newAreaFee, setNewAreaFee] = useState("");
+  const [newRouteName, setNewRouteName] = useState("");
+  const [newRouteFee, setNewRouteFee] = useState("");
 
   const initialForm = {
     enrollment: "",
@@ -111,15 +122,14 @@ function Fees() {
     studentType: "Existing",
     monthlyFee: 0,
     isTransportOpted: false,
-    selectedAreaName: "",
+    selectedRouteId: "",
     transportFee: 0,
-    assignedBusInfo: "",
     paidMonthsHistory: [],
     isAnnualPaidHistory: false,
     isExamPaidHistory: false,
     selectedMonths: [],
     includeAnnual: false,
-    annualFee: 500,
+    annualFee: annualFeeMaster.existingStudent,
     includeExam: false,
     examFee: 500,
     previousDues: 0,
@@ -145,6 +155,8 @@ function Fees() {
 
     const grossTotal = tuitionTotal + transportTotal + annualTotal + examTotal;
     const discount = Number(formData.discount || 0);
+
+    // Net Payable me purana bakaaya bhi joda jayega
     const netTotal = Math.max(0, grossTotal + previousDues - discount);
 
     return {
@@ -245,6 +257,8 @@ function Fees() {
     let previouslyPaidMonths = [];
     let isAnnualPaid = false;
     let isExamPaid = false;
+
+    // Accurate Previous Dues Calculation (Total Billed - Total Paid - Total Discount)
     let totalBilledByStudent = 0;
     let totalPaidByStudent = 0;
     let totalDiscountByStudent = 0;
@@ -287,30 +301,15 @@ function Fees() {
 
       const autoMonthlyFee = classFeeMaster[studentClass] || 0;
       let isTransport = studentObj.isTransport || false;
-      let areaName = studentObj.transportArea || studentObj.areaName || "";
+      let routeId = studentObj.routeId || "";
       let autoTransportFee = 0;
-      let assignedBus = "";
 
-      if (isTransport && areaName) {
-        const foundArea = transportAreas.find(
-          (a) => a.areaName.toLowerCase() === areaName.toLowerCase(),
-        );
-        autoTransportFee = foundArea ? foundArea.fee : 0;
-
-        // Transport routes me se dhundhe ki is area me kaun si bus jati hai
-        const matchedRoute = transportRoutes.find(
-          (r) =>
-            r.coveredAreas &&
-            r.coveredAreas.some(
-              (ca) => ca.toLowerCase() === areaName.toLowerCase(),
-            ),
-        );
-        if (matchedRoute) {
-          assignedBus = `${matchedRoute.routeName} (${matchedRoute.busNumber} - Driver: ${matchedRoute.driverName})`;
-        }
+      if (isTransport && routeId) {
+        const routeObj = transportRoutes.find((r) => r.id === Number(routeId));
+        autoTransportFee = routeObj ? routeObj.fee : 0;
       } else {
         isTransport = false;
-        areaName = "";
+        routeId = "";
         autoTransportFee = 0;
       }
 
@@ -329,9 +328,8 @@ function Fees() {
         monthlyFee: autoMonthlyFee,
         annualFee: autoAnnualFee,
         isTransportOpted: isTransport,
-        selectedAreaName: areaName,
+        selectedRouteId: routeId,
         transportFee: autoTransportFee,
-        assignedBusInfo: assignedBus,
         paidMonthsHistory: previouslyPaidMonths,
         isAnnualPaidHistory: isAnnualPaid,
         isExamPaidHistory: isExamPaid,
@@ -370,36 +368,23 @@ function Fees() {
     }));
   };
 
-  const handleAreaSelect = (e) => {
-    const area = e.target.value;
-    if (!area) {
+  const handleRouteSelect = (e) => {
+    const val = e.target.value;
+    if (val === "none" || val === "") {
       setFormData((prev) => ({
         ...prev,
         isTransportOpted: false,
-        selectedAreaName: "",
+        selectedRouteId: "",
         transportFee: 0,
-        assignedBusInfo: "",
       }));
     } else {
-      const foundArea = transportAreas.find((a) => a.areaName === area);
-      const fee = foundArea ? foundArea.fee : 0;
-
-      let assignedBus = "";
-      const matchedRoute = transportRoutes.find(
-        (r) =>
-          r.coveredAreas &&
-          r.coveredAreas.some((ca) => ca.toLowerCase() === area.toLowerCase()),
-      );
-      if (matchedRoute) {
-        assignedBus = `${matchedRoute.routeName} (${matchedRoute.busNumber} - Driver: ${matchedRoute.driverName})`;
-      }
-
+      const routeId = Number(val);
+      const selectedRoute = transportRoutes.find((r) => r.id === routeId);
       setFormData((prev) => ({
         ...prev,
         isTransportOpted: true,
-        selectedAreaName: area,
-        transportFee: fee,
-        assignedBusInfo: assignedBus,
+        selectedRouteId: routeId,
+        transportFee: selectedRoute ? selectedRoute.fee : 0,
       }));
     }
   };
@@ -431,51 +416,32 @@ function Fees() {
   const handleFillFullPay = () =>
     setFormData((prev) => ({ ...prev, paidAmount: calculatedTotals.netTotal }));
 
-  const handleAddClassFee = async (e) => {
+  const handleAddClassFee = (e) => {
     e.preventDefault();
     if (!newClass || !newClassFee) return;
-    const updated = { ...classFeeMaster, [newClass]: Number(newClassFee) };
-    try {
-      await feeMasterService.updateSettings({ classFees: updated });
-      setClassFeeMaster(updated);
-      toast.success(`Class ${newClass} Fee saved!`);
-      setNewClass("");
-      setNewClassFee("");
-    } catch (err) {
-      toast.error("Failed to save class fee.");
-    }
+    setClassFeeMaster((prev) => ({ ...prev, [newClass]: Number(newClassFee) }));
+    toast.success(`Class ${newClass} Fee set to ₹${newClassFee}`);
+    setNewClass("");
+    setNewClassFee("");
   };
 
-  const handleAddArea = async (e) => {
+  const handleAddRoute = (e) => {
     e.preventDefault();
-    if (!newAreaName || !newAreaFee) return;
-    const updatedAreas = [
-      ...transportAreas,
-      { areaName: newAreaName, fee: Number(newAreaFee) },
-    ];
-    try {
-      await feeMasterService.updateSettings({ transportAreas: updatedAreas });
-      setTransportAreas(updatedAreas);
-      toast.success("Transport Area added to Setup!");
-      setNewAreaName("");
-      setNewAreaFee("");
-    } catch (err) {
-      toast.error("Failed to add area.");
-    }
+    if (!newRouteName || !newRouteFee) return;
+    setTransportRoutes((prev) => [
+      ...prev,
+      { id: Date.now(), routeName: newRouteName, fee: Number(newRouteFee) },
+    ]);
+    toast.success("Transport Route Added!");
+    setNewRouteName("");
+    setNewRouteFee("");
   };
 
-  const handleAnnualFeeMasterChange = (field, val) => {
+  const handleAnnualFeeMasterChange = (field, val) =>
     setAnnualFeeMaster((prev) => ({ ...prev, [field]: Number(val) }));
-  };
 
-  const saveAnnualFeesToDB = async () => {
-    try {
-      await feeMasterService.updateSettings({ annualFees: annualFeeMaster });
-      toast.success("Annual Fees updated successfully!");
-    } catch (err) {
-      toast.error("Failed to update annual fees.");
-    }
-  };
+  // --- PART 2 IS BELOW ---
+  // 3. Backend Integration: Save / Update Fee
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -488,7 +454,7 @@ function Fees() {
       formData.selectedMonths.length === 0 &&
       !formData.includeAnnual &&
       !formData.includeExam &&
-      calculatedTotals.previousDues === 0
+      calculatedTotals.previousDues === 0 // Agar sirf purana due pay kar raha ho toh allow karein
     ) {
       toast.error("Please select at least one fee component or clear dues.");
       return;
@@ -514,7 +480,7 @@ function Fees() {
     const feeData = {
       ...formData,
       grossTotal: calculatedTotals.grossTotal,
-      previousDues: calculatedTotals.previousDues,
+      previousDues: calculatedTotals.previousDues, // Naya Bakaaya Logic
       totalFee: netTotal,
       paidAmount,
       dueAmount,
@@ -526,12 +492,14 @@ function Fees() {
 
     try {
       if (editingFee) {
+        // Update API Call
         const updated = await feeService.updateFee(editingFee._id, feeData);
         setFees((prev) =>
           prev.map((fee) => (fee._id === editingFee._id ? updated : fee)),
         );
         toast.success("Fee Record Updated Successfully!");
       } else {
+        // Create API Call
         const added = await feeService.addFee(feeData);
         setFees((prev) => [added, ...prev]);
         toast.success("Fee Collected Successfully!");
@@ -547,6 +515,7 @@ function Fees() {
 
   const handleEdit = (fee) => {
     setEditingFee(fee);
+
     const otherRecords = fees.filter(
       (f) =>
         f.enrollment.toLowerCase() === fee.enrollment.toLowerCase() &&
@@ -569,6 +538,7 @@ function Fees() {
     setShowModal(true);
   };
 
+  // 4. Backend Integration: Delete Fee
   const confirmDeleteFee = async () => {
     if (!feeToDelete) return;
     try {
@@ -615,18 +585,6 @@ function Fees() {
           <strong>Class:</strong> {fee.className} | <strong>Type:</strong>{" "}
           {fee.studentType || "Existing"}
         </div>
-        {fee.isTransportOpted && fee.selectedAreaName && (
-          <div style={{ marginTop: "4px" }}>
-            <strong>Transport Area:</strong> {fee.selectedAreaName}
-            {fee.assignedBusInfo && (
-              <div>
-                <small>
-                  <strong>Bus Info:</strong> {fee.assignedBusInfo}
-                </small>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {fee.selectedMonths && fee.selectedMonths.length > 0 && (
@@ -653,10 +611,7 @@ function Fees() {
               </tr>
               {fee.isTransportOpted && Number(fee.transportFee) > 0 && (
                 <tr>
-                  <td>
-                    Transport Fee - {fee.selectedAreaName} (
-                    {fee.selectedMonths.length} Month/s)
-                  </td>
+                  <td>Transport Fee ({fee.selectedMonths.length} Month/s)</td>
                   <td className="text-right">
                     {currency(fee.selectedMonths.length * fee.transportFee)}
                   </td>
@@ -772,21 +727,31 @@ function Fees() {
                       setDateFilter(e.target.value);
                       setCurrentPage(1);
                     }}
+                    title="Filter by Payment Date"
                   />
 
                   <button
                     type="button"
                     className="fees-today-btn"
                     onClick={handleSetToday}
+                    title="Set Date to Today"
                   >
                     Today
                   </button>
 
-                  <button className="fees-reset-btn" onClick={handleReset}>
+                  <button
+                    className="fees-reset-btn"
+                    onClick={handleReset}
+                    title="Reset All Filters"
+                  >
                     <FaRedoAlt />
                   </button>
 
-                  <button className="fees-export-btn" onClick={handleExportCSV}>
+                  <button
+                    className="fees-export-btn"
+                    onClick={handleExportCSV}
+                    title="Export to CSV"
+                  >
                     <FaDownload /> Export
                   </button>
 
@@ -811,6 +776,7 @@ function Fees() {
               </div>
             </div>
 
+            {/* Fees Table */}
             {loading ? (
               <div style={{ textAlign: "center", padding: "20px" }}>
                 Loading Fee Records...
@@ -874,18 +840,21 @@ function Fees() {
                               <button
                                 className="fee-view-btn"
                                 onClick={() => setViewingFee(fee)}
+                                title="View Receipt"
                               >
                                 <FaEye />
                               </button>
                               <button
                                 className="fee-print-btn"
                                 onClick={() => setPrintModalFee(fee)}
+                                title="Print Receipt"
                               >
                                 <FaPrint />
                               </button>
                               <button
                                 className="fee-edit-btn"
                                 onClick={() => handleEdit(fee)}
+                                title="Edit Record"
                               >
                                 <FaEdit />
                               </button>
@@ -895,6 +864,7 @@ function Fees() {
                                   setFeeToDelete(fee);
                                   setShowDeleteModal(true);
                                 }}
+                                title="Delete Record"
                               >
                                 <FaTrash />
                               </button>
@@ -914,6 +884,7 @@ function Fees() {
               </div>
             )}
 
+            {/* Pagination Controls */}
             {!loading && filteredFees.length > 0 && (
               <div className="fees-pagination">
                 <button
@@ -943,34 +914,16 @@ function Fees() {
             {/* MODAL 1: MASTER SETUP */}
             {showSettingsModal && (
               <div className="fees-modal-overlay">
-                <div
-                  className="fees-modal setup-modal"
-                  style={{ maxWidth: "800px" }}
-                >
+                <div className="fees-modal setup-modal">
                   <h2>
-                    <FaCog /> Master Fee Setup & Transport Areas
+                    <FaCog /> Master Fee Setup
                   </h2>
 
-                  <div
-                    className="setup-box margin-bottom-15"
-                    style={{
-                      background: "#f8fafc",
-                      padding: "15px",
-                      borderRadius: "8px",
-                      marginBottom: "15px",
-                    }}
-                  >
+                  <div className="setup-box margin-bottom-15">
                     <h3>
                       <FaUserCheck /> Default Annual Charge Rates
                     </h3>
-                    <div
-                      className="setup-inline-form-row"
-                      style={{
-                        display: "flex",
-                        gap: "15px",
-                        marginTop: "10px",
-                      }}
-                    >
+                    <div className="setup-inline-form-row">
                       <div>
                         <label>New Student Annual Charge (₹)</label>
                         <input
@@ -997,46 +950,17 @@ function Fees() {
                           }
                         />
                       </div>
-                      <div style={{ display: "flex", alignItems: "flex-end" }}>
-                        <button
-                          type="button"
-                          className="add-fee-btn"
-                          onClick={saveAnnualFeesToDB}
-                        >
-                          <FaSave /> Save Annual
-                        </button>
-                      </div>
                     </div>
                   </div>
 
-                  <div
-                    className="setup-grid"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "20px",
-                    }}
-                  >
-                    {/* Class Fee Setup */}
-                    <div
-                      className="setup-box"
-                      style={{
-                        background: "#f8fafc",
-                        padding: "15px",
-                        borderRadius: "8px",
-                      }}
-                    >
+                  <div className="setup-grid">
+                    <div className="setup-box">
                       <h3>
                         <FaGraduationCap /> Class Monthly Fees
                       </h3>
                       <form
                         onSubmit={handleAddClassFee}
                         className="setup-inline-form"
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          margin: "10px 0",
-                        }}
                       >
                         <input
                           type="text"
@@ -1047,7 +971,7 @@ function Fees() {
                         />
                         <input
                           type="number"
-                          placeholder="Fee (₹)"
+                          placeholder="Monthly Fee (₹)"
                           value={newClassFee}
                           onChange={(e) => setNewClassFee(e.target.value)}
                           required
@@ -1057,107 +981,55 @@ function Fees() {
                         </button>
                       </form>
 
-                      <div
-                        className="setup-list"
-                        style={{ maxHeight: "150px", overflowY: "auto" }}
-                      >
-                        {Object.entries(classFeeMaster).length > 0 ? (
-                          Object.entries(classFeeMaster).map(([cls, fee]) => (
-                            <div
-                              key={cls}
-                              className="setup-item"
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                padding: "6px 0",
-                                borderBottom: "1px solid #eee",
-                              }}
-                            >
-                              <span>Class {cls}</span>
-                              <strong>₹ {fee} / month</strong>
-                            </div>
-                          ))
-                        ) : (
-                          <small style={{ color: "#777" }}>
-                            No classes configured yet.
-                          </small>
-                        )}
+                      <div className="setup-list">
+                        {Object.entries(classFeeMaster).map(([cls, fee]) => (
+                          <div key={cls} className="setup-item">
+                            <span>Class {cls}</span>
+                            <strong>₹ {fee} / month</strong>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    {/* Transport Areas & Fares Setup */}
-                    <div
-                      className="setup-box"
-                      style={{
-                        background: "#f8fafc",
-                        padding: "15px",
-                        borderRadius: "8px",
-                      }}
-                    >
+                    <div className="setup-box">
                       <h3>
-                        <FaBus /> Transport Areas & Fares
+                        <FaBus /> Transport Routes & Rates
                       </h3>
                       <form
-                        onSubmit={handleAddArea}
+                        onSubmit={handleAddRoute}
                         className="setup-inline-form"
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          margin: "10px 0",
-                        }}
                       >
                         <input
                           type="text"
-                          placeholder="Area Name"
-                          value={newAreaName}
-                          onChange={(e) => setNewAreaName(e.target.value)}
+                          placeholder="Route Name / Area"
+                          value={newRouteName}
+                          onChange={(e) => setNewRouteName(e.target.value)}
                           required
                         />
                         <input
                           type="number"
-                          placeholder="Fare (₹)"
-                          value={newAreaFee}
-                          onChange={(e) => setNewAreaFee(e.target.value)}
+                          placeholder="Route Fee (₹)"
+                          value={newRouteFee}
+                          onChange={(e) => setNewRouteFee(e.target.value)}
                           required
                         />
                         <button type="submit" className="add-fee-btn">
-                          Add Area
+                          Add Route
                         </button>
                       </form>
 
-                      <div
-                        className="setup-list"
-                        style={{ maxHeight: "150px", overflowY: "auto" }}
-                      >
-                        {transportAreas.length > 0 ? (
-                          transportAreas.map((area, idx) => (
-                            <div
-                              key={idx}
-                              className="setup-item"
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                padding: "6px 0",
-                                borderBottom: "1px solid #eee",
-                              }}
-                            >
-                              <span>{area.areaName}</span>
-                              <strong>₹ {area.fee} / month</strong>
-                            </div>
-                          ))
-                        ) : (
-                          <small style={{ color: "#777" }}>
-                            No transport areas added yet.
-                          </small>
-                        )}
+                      <div className="setup-list">
+                        {transportRoutes.map((route) => (
+                          <div key={route.id} className="setup-item">
+                            <span>{route.routeName}</span>
+                            <strong>₹ {route.fee} / month</strong>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
 
-                  <div
-                    className="fees-modal-buttons"
-                    style={{ marginTop: "20px" }}
-                  >
+                  <div className="fees-modal-buttons">
                     <button
                       className="fees-cancel-btn"
                       onClick={() => setShowSettingsModal(false)}
@@ -1229,6 +1101,7 @@ function Fees() {
                           type="number"
                           name="monthlyFee"
                           value={formData.monthlyFee}
+                          onChange={handleChange}
                           className="auto-filled-input"
                           readOnly
                         />
@@ -1263,30 +1136,28 @@ function Fees() {
                       </div>
                     </div>
 
-                    {/* Transport Area Selection */}
-                    <div
-                      className="transport-auto-box"
-                      style={{
-                        background: "#f0fdf4",
-                        padding: "12px",
-                        borderRadius: "8px",
-                        margin: "10px 0",
-                      }}
-                    >
+                    {/* Transport Auto-Fetched Section */}
+                    <div className="transport-auto-box">
                       <div className="form-grid">
                         <div>
                           <label>
-                            <FaBus /> Select Transport Area
+                            <FaBus /> Transport Route (Auto-Fetched)
                           </label>
                           <select
-                            name="selectedAreaName"
-                            value={formData.selectedAreaName}
-                            onChange={handleAreaSelect}
+                            name="selectedRouteId"
+                            value={
+                              formData.isTransportOpted
+                                ? formData.selectedRouteId
+                                : "none"
+                            }
+                            onChange={handleRouteSelect}
                           >
-                            <option value="">None (No Transport)</option>
-                            {transportAreas.map((area, idx) => (
-                              <option key={idx} value={area.areaName}>
-                                {area.areaName} (₹{area.fee}/mo)
+                            <option value="none">
+                              None (Not Opted / No Bus)
+                            </option>
+                            {transportRoutes.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.routeName} (₹{r.fee}/mo)
                               </option>
                             ))}
                           </select>
@@ -1297,25 +1168,16 @@ function Fees() {
                           <input
                             type="number"
                             name="transportFee"
-                            value={formData.transportFee}
+                            value={
+                              formData.isTransportOpted
+                                ? formData.transportFee
+                                : 0
+                            }
                             className="auto-filled-input"
                             readOnly
                           />
                         </div>
                       </div>
-
-                      {formData.assignedBusInfo && (
-                        <div
-                          style={{
-                            marginTop: "8px",
-                            fontSize: "13px",
-                            color: "#166534",
-                          }}
-                        >
-                          <strong>Assigned Bus Route:</strong>{" "}
-                          {formData.assignedBusInfo}
-                        </div>
-                      )}
                     </div>
 
                     {/* Month Picker */}
@@ -1362,7 +1224,9 @@ function Fees() {
                     <div className="fee-toggles-container">
                       <div className="fee-toggle-box">
                         <label
-                          className={`checkbox-label ${formData.isAnnualPaidHistory ? "disabled" : ""}`}
+                          className={`checkbox-label ${
+                            formData.isAnnualPaidHistory ? "disabled" : ""
+                          }`}
                         >
                           <input
                             type="checkbox"
@@ -1394,7 +1258,9 @@ function Fees() {
 
                       <div className="fee-toggle-box">
                         <label
-                          className={`checkbox-label ${formData.isExamPaidHistory ? "disabled" : ""}`}
+                          className={`checkbox-label ${
+                            formData.isExamPaidHistory ? "disabled" : ""
+                          }`}
                         >
                           <input
                             type="checkbox"
@@ -1429,6 +1295,7 @@ function Fees() {
                           name="discount"
                           value={formData.discount}
                           onChange={handleChange}
+                          placeholder="e.g. 500"
                           min="0"
                         />
                       </div>
@@ -1559,13 +1426,17 @@ function Fees() {
                     <h2>Print Fee Receipt</h2>
                     <div className="mode-toggle-buttons">
                       <button
-                        className={`mode-btn ${printMode === "split" ? "active" : ""}`}
+                        className={`mode-btn ${
+                          printMode === "split" ? "active" : ""
+                        }`}
                         onClick={() => setPrintMode("split")}
                       >
                         2 Copies (Split A5)
                       </button>
                       <button
-                        className={`mode-btn ${printMode === "full" ? "active" : ""}`}
+                        className={`mode-btn ${
+                          printMode === "full" ? "active" : ""
+                        }`}
                         onClick={() => setPrintMode("full")}
                       >
                         Full A5 Copy
