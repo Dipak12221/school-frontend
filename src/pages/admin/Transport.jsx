@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaBus,
   FaSearch,
@@ -16,44 +16,12 @@ import { toast } from "react-toastify";
 import "./Transport.css";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
+import transportService from "../../services/transportService";
 
 const Transport = () => {
-  // Dummy Transport Routes Data
-  const [routes, setRoutes] = useState([
-    {
-      id: 1,
-      routeName: "Route 1 - City Center Express",
-      busNumber: "BUS-01",
-      vehicleNumber: "MH 12 AB 1234",
-      driverName: "Ramesh Sharma",
-      driverPhone: "+91 9876543210",
-      stops: "Station Circle, Market Yard, Green Park, School Campus",
-      fare: 1500,
-      status: "Active",
-    },
-    {
-      id: 2,
-      routeName: "Route 2 - North Suburbs",
-      busNumber: "BUS-02",
-      vehicleNumber: "MH 12 CD 5678",
-      driverName: "Suresh Kumar",
-      driverPhone: "+91 9812345678",
-      stops: "Hightech City, Royal Residency, Oakridge, School Campus",
-      fare: 1800,
-      status: "Active",
-    },
-    {
-      id: 3,
-      routeName: "Route 3 - South Hill Line",
-      busNumber: "BUS-03",
-      vehicleNumber: "MH 12 EF 9012",
-      driverName: "Vikram Singh",
-      driverPhone: "+91 9765432109",
-      stops: "Valley View, Lake Chowk, Sun City, School Campus",
-      fare: 1200,
-      status: "Inactive",
-    },
-  ]);
+  // MongoDB state
+  const [routes, setRoutes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Filters State
   const [search, setSearch] = useState("");
@@ -64,8 +32,8 @@ const Transport = () => {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
 
-  const [formData, setFormData] = useState({
-    id: null,
+  const initialFormState = {
+    _id: null,
     routeName: "",
     busNumber: "",
     vehicleNumber: "",
@@ -74,7 +42,26 @@ const Transport = () => {
     stops: "",
     fare: "",
     status: "Active",
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  // Fetch Data on Load
+  const fetchRoutes = async () => {
+    setLoading(true);
+    try {
+      const data = await transportService.getAllRoutes();
+      setRoutes(data || []);
+    } catch (error) {
+      toast.error("Failed to fetch transport routes from server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoutes();
+  }, []);
 
   // Filter Logic
   const filteredRoutes = routes.filter((item) => {
@@ -98,17 +85,7 @@ const Transport = () => {
 
   // Handlers
   const handleOpenAdd = () => {
-    setFormData({
-      id: null,
-      routeName: "",
-      busNumber: "",
-      vehicleNumber: "",
-      driverName: "",
-      driverPhone: "",
-      stops: "",
-      fare: "",
-      status: "Active",
-    });
+    setFormData(initialFormState);
     setIsAddEditOpen(true);
   };
 
@@ -122,38 +99,45 @@ const Transport = () => {
     setIsViewOpen(true);
   };
 
-  const handleDelete = (item) => {
+  const handleDelete = async (item) => {
     if (
       window.confirm(`Are you sure you want to delete "${item.routeName}"?`)
     ) {
-      setRoutes(routes.filter((r) => r.id !== item.id));
-      toast.error(`Route deleted: "${item.routeName}"`);
+      try {
+        await transportService.deleteRoute(item._id);
+        setRoutes(routes.filter((r) => r._id !== item._id));
+        toast.success(`Route deleted: "${item.routeName}"`);
+      } catch (error) {
+        toast.error("Failed to delete the route.");
+      }
     }
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    if (formData.id) {
-      setRoutes(
-        routes.map((r) =>
-          r.id === formData.id
-            ? { ...formData, fare: Number(formData.fare) }
-            : r,
-        ),
-      );
-      toast.success("Transport route updated successfully!");
-    } else {
-      const newRoute = {
-        id: Date.now(),
-        ...formData,
-        fare: Number(formData.fare),
-      };
-      setRoutes([newRoute, ...routes]);
-      toast.success("New transport route added!");
+    try {
+      if (formData._id) {
+        // Update existing route
+        const updated = await transportService.updateRoute(formData._id, {
+          ...formData,
+          fare: Number(formData.fare),
+        });
+        setRoutes(routes.map((r) => (r._id === formData._id ? updated : r)));
+        toast.success("Transport route updated successfully!");
+      } else {
+        // Create new route
+        const newRoute = await transportService.addRoute({
+          ...formData,
+          fare: Number(formData.fare),
+        });
+        setRoutes([newRoute, ...routes]);
+        toast.success("New transport route added!");
+      }
+      setIsAddEditOpen(false);
+    } catch (error) {
+      toast.error("Failed to save transport route.");
     }
-
-    setIsAddEditOpen(false);
   };
 
   return (
@@ -208,89 +192,97 @@ const Transport = () => {
             </div>
 
             {/* Routes Table */}
-            <div className="transport-table-container">
-              <table className="transport-table">
-                <thead>
-                  <tr>
-                    <th>Bus / Route</th>
-                    <th>Vehicle No.</th>
-                    <th>Driver & Contact</th>
-                    <th>Stops</th>
-                    <th>Monthly Fee</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRoutes.length > 0 ? (
-                    filteredRoutes.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="route-info">
-                            <span className="bus-badge">{item.busNumber}</span>
-                            <strong>{item.routeName}</strong>
-                          </div>
-                        </td>
-                        <td>{item.vehicleNumber}</td>
-                        <td>
-                          <div className="driver-info">
-                            <span>{item.driverName}</span>
-                            <small>
-                              <FaPhoneAlt /> {item.driverPhone}
-                            </small>
-                          </div>
-                        </td>
-                        <td className="stops-cell" title={item.stops}>
-                          <FaMapMarkerAlt className="marker-icon" />{" "}
-                          {item.stops}
-                        </td>
-                        <td>₹{item.fare} / mo</td>
-                        <td>
-                          <span
-                            className={`status-badge ${
-                              item.status === "Active" ? "active" : "inactive"
-                            }`}
-                          >
-                            {item.status}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="table-actions">
-                            <button
-                              className="action-btn view"
-                              onClick={() => handleView(item)}
-                              title="View Route Details"
+            {loading ? (
+              <div style={{ textAlign: "center", padding: "20px" }}>
+                Loading Transport Routes...
+              </div>
+            ) : (
+              <div className="transport-table-container">
+                <table className="transport-table">
+                  <thead>
+                    <tr>
+                      <th>Bus / Route</th>
+                      <th>Vehicle No.</th>
+                      <th>Driver & Contact</th>
+                      <th>Stops</th>
+                      <th>Monthly Fee</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRoutes.length > 0 ? (
+                      filteredRoutes.map((item) => (
+                        <tr key={item._id}>
+                          <td>
+                            <div className="route-info">
+                              <span className="bus-badge">
+                                {item.busNumber}
+                              </span>
+                              <strong>{item.routeName}</strong>
+                            </div>
+                          </td>
+                          <td>{item.vehicleNumber}</td>
+                          <td>
+                            <div className="driver-info">
+                              <span>{item.driverName}</span>
+                              <small>
+                                <FaPhoneAlt /> {item.driverPhone}
+                              </small>
+                            </div>
+                          </td>
+                          <td className="stops-cell" title={item.stops}>
+                            <FaMapMarkerAlt className="marker-icon" />{" "}
+                            {item.stops}
+                          </td>
+                          <td>₹{item.fare} / mo</td>
+                          <td>
+                            <span
+                              className={`status-badge ${
+                                item.status === "Active" ? "active" : "inactive"
+                              }`}
                             >
-                              <FaEye />
-                            </button>
-                            <button
-                              className="action-btn edit"
-                              onClick={() => handleEdit(item)}
-                              title="Edit Route"
-                            >
-                              <FaEdit />
-                            </button>
-                            <button
-                              className="action-btn delete"
-                              onClick={() => handleDelete(item)}
-                              title="Delete Route"
-                            >
-                              <FaTrash />
-                            </button>
-                          </div>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="table-actions">
+                              <button
+                                className="action-btn view"
+                                onClick={() => handleView(item)}
+                                title="View Route Details"
+                              >
+                                <FaEye />
+                              </button>
+                              <button
+                                className="action-btn edit"
+                                onClick={() => handleEdit(item)}
+                                title="Edit Route"
+                              >
+                                <FaEdit />
+                              </button>
+                              <button
+                                className="action-btn delete"
+                                onClick={() => handleDelete(item)}
+                                title="Delete Route"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="7" className="no-records">
+                          No transport routes found.
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="7" className="no-records">
-                        No transport routes found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -301,7 +293,7 @@ const Transport = () => {
           <div className="transport-modal">
             <div className="transport-modal-header">
               <h2>
-                {formData.id ? "Edit Transport Route" : "Add Transport Route"}
+                {formData._id ? "Edit Transport Route" : "Add Transport Route"}
               </h2>
               <button
                 onClick={() => setIsAddEditOpen(false)}
@@ -426,7 +418,7 @@ const Transport = () => {
               </div>
 
               <button type="submit" className="save-transport-btn">
-                {formData.id ? "Update Route" : "Create Route"}
+                {formData._id ? "Update Route" : "Create Route"}
               </button>
             </form>
           </div>
