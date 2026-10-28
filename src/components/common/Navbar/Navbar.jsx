@@ -17,7 +17,7 @@ function Navbar() {
         <Link to="/" className="logo" onClick={closeMenu}>
           <img src="/logo.png" alt="School Logo" />
           <div className="logo-text">
-            <h2>ABC Public School</h2>
+            <h2>R.B.G Public School</h2>
             <span>CBSE Affiliated School</span>
           </div>
         </Link>
