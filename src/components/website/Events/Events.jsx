@@ -6,20 +6,15 @@ function Events() {
   return (
     <section className="events">
       <div className="container">
-
         <div className="section-heading">
           <span>School Events</span>
           <h2>Upcoming Events</h2>
-          <p>
-            Participate in our educational, cultural and sports activities.
-          </p>
+          <p>Participate in our educational, cultural and sports activities.</p>
         </div>
 
         <div className="events-grid">
-
           {events.map((event) => (
             <div className="event-card" key={event.id}>
-
               <div className="event-date">
                 <FaCalendarAlt />
                 <span>{event.date}</span>
@@ -31,15 +26,10 @@ function Events() {
                 <FaMapMarkerAlt /> {event.location}
               </p>
 
-              <button>
-                Read More
-              </button>
-
+              <button>Read More</button>
             </div>
           ))}
-
         </div>
-
       </div>
     </section>
   );
