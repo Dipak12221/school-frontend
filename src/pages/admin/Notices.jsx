@@ -15,7 +15,8 @@ import { toast } from "react-toastify";
 import "./Notices.css";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
-import noticeService from "../../services/noticeService"; // Backend Service Import
+import noticeService from "../../services/noticeService";
+import Loader from "../../components/common/Loader/Loader"; // <-- LOADER IMPORT KIYA GAYA
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
@@ -297,12 +298,10 @@ const Notices = () => {
               </div>
             </div>
 
-            {/* Notice Table */}
+            {/* Notice Table with Loader */}
             <div className="notices-table-container">
               {loading ? (
-                <div style={{ textAlign: "center", padding: "20px" }}>
-                  Loading notices...
-                </div>
+                <Loader />
               ) : (
                 <table className="notices-table">
                   <thead>

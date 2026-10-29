@@ -17,7 +17,8 @@ import { toast } from "react-toastify";
 import "./Gallery.css";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
-import galleryService from "../../services/galleryService"; // API Service Import
+import galleryService from "../../services/galleryService";
+import Loader from "../../components/common/Loader/Loader"; // <-- LOADER IMPORT KIYA GAYA
 
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
@@ -196,7 +197,6 @@ const Gallery = () => {
       toast.error("Action failed. Please try again.");
     }
   };
-
   return (
     <div className="admin-dashboard">
       <Sidebar />
@@ -275,10 +275,9 @@ const Gallery = () => {
               </div>
             </div>
 
+            {/* Gallery Grid with Loader */}
             {loading ? (
-              <div style={{ textAlign: "center", padding: "20px" }}>
-                Loading gallery...
-              </div>
+              <Loader />
             ) : (
               <div className="gallery-grid">
                 {currentItems.length > 0 ? (

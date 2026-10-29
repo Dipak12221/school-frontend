@@ -20,6 +20,7 @@ import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
 import feeService from "../../services/feeService";
 import studentService from "../../services/studentService";
+import Loader from "../../components/common/Loader/Loader"; // <-- LOADER IMPORT KIYA GAYA HAI
 
 import "./Fees.css";
 
@@ -243,7 +244,6 @@ function Fees() {
     window.URL.revokeObjectURL(url);
   };
 
-  // FIX: Updated logic to correctly map stopId for auto-fetch
   const handleEnrollmentChange = (e) => {
     const enroll = e.target.value;
     const existingStudentRecords = fees.filter(
@@ -296,7 +296,6 @@ function Fees() {
           : "");
       const autoMonthlyFee = classFeeMaster[studentClass] || 0;
 
-      // TRANSPORT FIX: Map stopId correctly
       let isTransport = studentObj.isTransport || false;
       let fetchedStopId = studentObj.stopId || studentObj.routeId || "";
       let autoTransportFee = studentObj.transportFee || 0;
@@ -368,7 +367,6 @@ function Fees() {
     }));
   };
 
-  // FIX: Type-safe comparison for Route/Stop selection
   const handleRouteSelect = (e) => {
     const val = e.target.value;
     if (val === "none" || val === "") {
@@ -787,9 +785,7 @@ function Fees() {
 
             {/* Fees Table */}
             {loading ? (
-              <div style={{ textAlign: "center", padding: "20px" }}>
-                Loading Fee Records...
-              </div>
+              <Loader />
             ) : (
               <div className="fees-table-container">
                 <table className="fees-table">

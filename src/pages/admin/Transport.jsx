@@ -17,6 +17,7 @@ import "./Transport.css";
 import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
 import transportService from "../../services/transportService";
+import Loader from "../../components/common/Loader/Loader"; // <-- LOADER IMPORT KIYA GAYA
 
 const Transport = () => {
   const [routes, setRoutes] = useState([]);
@@ -180,7 +181,6 @@ const Transport = () => {
       );
     }
   };
-
   return (
     <div className="admin-dashboard">
       <Sidebar />
@@ -232,9 +232,7 @@ const Transport = () => {
             </div>
 
             {loading ? (
-              <div style={{ textAlign: "center", padding: "20px" }}>
-                Loading Transport Routes...
-              </div>
+              <Loader />
             ) : (
               <div className="transport-table-container">
                 <table className="transport-table">
