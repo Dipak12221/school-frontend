@@ -14,10 +14,12 @@ import Sidebar from "../../components/admin/Sidebar/Sidebar";
 import Topbar from "../../components/admin/Topbar/Topbar";
 import Loader from "../../components/common/Loader/Loader";
 import API from "../../services/api"; // Aapka Axios API instance
+import { useSettings } from "../../context/SettingsContext";
 
 import "./Settings.css";
 
 const Settings = () => {
+  const { fetchSettings } = useSettings();
   const [activeTab, setActiveTab] = useState("general");
   const [loading, setLoading] = useState(true);
 
@@ -161,6 +163,7 @@ const Settings = () => {
   };
 
   // 2. Save Data to Backend API
+  // 2. Save Data to Backend API
   const handleSaveAll = async (e) => {
     e.preventDefault();
 
@@ -191,6 +194,9 @@ const Settings = () => {
     try {
       await API.put("/settings", payload);
       toast.success("Settings saved successfully!");
+
+      // Ye function context ko batata hai ki naya data aa gaya hai, turant update karo!
+      await fetchSettings();
     } catch (error) {
       toast.error("Failed to save settings. Please try again.");
     }

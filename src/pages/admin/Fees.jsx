@@ -21,6 +21,7 @@ import Topbar from "../../components/admin/Topbar/Topbar";
 import feeService from "../../services/feeService";
 import studentService from "../../services/studentService";
 import Loader from "../../components/common/Loader/Loader"; // <-- LOADER IMPORT KIYA GAYA HAI
+import { useSettings } from "../../context/SettingsContext";
 
 import "./Fees.css";
 
@@ -42,6 +43,7 @@ const ACADEMIC_MONTHS = [
 const getTodayDateString = () => new Date().toISOString().split("T")[0];
 
 function Fees() {
+  const { settings } = useSettings();
   // --- DATABASE CONNECTED MASTER SETUP STATES ---
   const [classFeeMaster, setClassFeeMaster] = useState({});
   const [annualFeeMaster, setAnnualFeeMaster] = useState({
@@ -566,14 +568,32 @@ function Fees() {
   const ReceiptContent = ({ fee, copyType }) => (
     <div className="receipt-box">
       <div className="receipt-header">
-        <div className="school-info">
-          <h2>R.B.G. PUBLIC SCHOOL</h2>
-          <p>Titra, Bihar | Contact: +91 98765 43210</p>
+        <div className="school-info" style={{ textAlign: "center" }}>
+          {/* Dynamic Logo */}
+          {settings?.logoUrl && (
+            <img
+              src={settings.logoUrl}
+              alt="School Logo"
+              style={{
+                maxHeight: "60px",
+                marginBottom: "8px",
+                objectFit: "contain",
+              }}
+            />
+          )}
+          {/* Dynamic School Name */}
+          <h2>{settings?.schoolName || "R.B.G. PUBLIC SCHOOL"}</h2>
+          {/* Dynamic Address & Phone */}
+          <p>
+            {settings?.address || "Titra, Bihar"} | Contact:{" "}
+            {settings?.phone || "+91 98765 43210"}
+          </p>
         </div>
         <div className="receipt-tag">
           <span>{copyType}</span>
         </div>
       </div>
+
       <div className="receipt-meta">
         <div>
           <strong>Receipt No:</strong> {fee.receiptNo}
@@ -585,6 +605,7 @@ function Fees() {
           <strong>Mode:</strong> {fee.paymentMode || "Cash"}
         </div>
       </div>
+
       <div className="receipt-student-info">
         <div>
           <strong>Student:</strong> {fee.studentName} ({fee.enrollment})
